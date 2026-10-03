@@ -1,0 +1,987 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  XMarkIcon, 
+  CreditCardIcon, 
+  BanknotesIcon, 
+  QrCodeIcon, 
+  BuildingLibraryIcon,
+  CheckCircleIcon,
+  ShieldCheckIcon,
+  TruckIcon,
+  MapPinIcon,
+  PhoneIcon,
+  UserIcon,
+  EnvelopeIcon,
+  ArrowRightIcon,
+  ArrowLeftIcon
+} from '@heroicons/react/24/outline';
+import { orderService } from '../services/order.service';
+
+export function CheckoutModal({ isOpen, onClose, cartData, user, onOrderSuccess, onShowToast }) {
+  const [step, setStep] = useState(1); // 1: Shipping Info, 2: Payment Method, 3: Review & Pay
+  const [shippingInfo, setShippingInfo] = useState({
+    full_name: '',
+    email: '',
+    phone: '1-800-555-0199',
+    shipping_address: '450 VIP Commerce Way, Suite 800, New York, NY 10001',
+    notes: 'Please leave at front reception if after 5 PM.'
+  });
+
+  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'cod' | 'qr' | 'paypal' | 'bank'
+  const [cardDetails, setCardDetails] = useState({
+    number: '4242 •••• •••• 4242',
+    expiry: '08/28',
+    cvv: '882',
+    name: ''
+  });
+  const [cardBrand, setCardBrand] = useState('visa');
+  const [khqrVerified, setKhqrVerified] = useState(false);
+  const [khqrCountdown, setKhqrCountdown] = useState(299);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (step === 2 && paymentMethod === 'qr' && khqrCountdown > 0 && !khqrVerified) {
+      timer = setInterval(() => {
+        setKhqrCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, paymentMethod, khqrCountdown, khqrVerified]);
+
+  useEffect(() => {
+    if (user) {
+      setShippingInfo(prev => ({
+        ...prev,
+        full_name: user.name || user.full_name || 'VIP Member',
+        email: user.email || 'customer@nexusvip.io',
+        phone: user.phone || prev.phone,
+        shipping_address: user.address || user.shipping_address || prev.shipping_address
+      }));
+      setCardDetails(prev => ({
+        ...prev,
+        name: user.name || 'VIP Member'
+      }));
+    }
+  }, [user, isOpen]);
+
+  if (!isOpen || !cartData) return null;
+
+  const items = cartData.items || [];
+  const discountAmount = parseFloat(cartData.discountAmount || 0);
+  const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price || 0) * (item.quantity || 1)), 0);
+  const tax = Math.max(0, (subtotal - discountAmount) * 0.08);
+  const grandTotal = Math.max(0, subtotal - discountAmount + tax);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setShippingInfo(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCardChange = (e) => {
+    let { name, value } = e.target;
+    if (name === 'number') {
+      const clean = value.replace(/\D/g, '').slice(0, 16);
+      value = clean.replace(/(\d{4})/g, '$1 ').trim();
+      if (clean.startsWith('4')) setCardBrand('visa');
+      else if (clean.startsWith('5')) setCardBrand('mastercard');
+      else if (clean.startsWith('3')) setCardBrand('amex');
+      else setCardBrand('generic');
+    } else if (name === 'expiry') {
+      const clean = value.replace(/\D/g, '').slice(0, 4);
+      if (clean.length > 2) {
+        value = `${clean.slice(0, 2)}/${clean.slice(2)}`;
+      } else {
+        value = clean;
+      }
+    } else if (name === 'cvv') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+    }
+    setCardDetails(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleNextStep = (e) => {
+    e?.preventDefault();
+    if (step === 1) {
+      if (!shippingInfo.full_name.trim() || !shippingInfo.shipping_address.trim() || !shippingInfo.phone.trim()) {
+        if (onShowToast) {
+          onShowToast({
+            type: 'remove',
+            title: 'Missing Information',
+            text: 'Please complete all required shipping fields.'
+          });
+        }
+        return;
+      }
+      setStep(2);
+    } else if (step === 2) {
+      setStep(3);
+    }
+  };
+
+  const handlePayAndOrder = async () => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        total: parseFloat(grandTotal.toFixed(2)),
+        total_amount: parseFloat(grandTotal.toFixed(2)),
+        items: items,
+        discount: discountAmount,
+        coupon_code: cartData.couponCode || null,
+        shipping_address: shippingInfo.shipping_address,
+        address: shippingInfo.shipping_address,
+        phone: shippingInfo.phone,
+        full_name: shippingInfo.full_name,
+        email: shippingInfo.email,
+        notes: shippingInfo.notes,
+        payment_method: paymentMethod // 'card' | 'cod' | 'qr' | 'bank'
+      };
+
+      const createdOrder = await orderService.createOrder(payload);
+
+      if (onShowToast) {
+        onShowToast({
+          type: 'success',
+          title: 'Payment Confirmed!',
+          text: `Order #${createdOrder.id || 'Confirmed'} placed successfully via ${paymentMethod.toUpperCase()}.`
+        });
+      }
+
+      if (onOrderSuccess) {
+        onOrderSuccess({
+          ...createdOrder,
+          id: createdOrder.id || Math.floor(10000 + Math.random() * 90000),
+          status: createdOrder.status || 'Processing',
+          payment_method: paymentMethod,
+          shipping_address: shippingInfo.shipping_address,
+          phone: shippingInfo.phone,
+          full_name: shippingInfo.full_name,
+          email: shippingInfo.email,
+          total: grandTotal,
+          items: items,
+          date: new Date().toLocaleString()
+        });
+      }
+    } catch (err) {
+      console.error("Order placement error:", err);
+      if (onShowToast) {
+        onShowToast({
+          type: 'remove',
+          title: 'Payment Failed',
+          text: err.message || 'We encountered an error processing your payment.'
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 4000,
+        backgroundColor: 'rgba(15, 20, 30, 0.82)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px',
+        animation: 'fadeIn 0.25s ease-out'
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel animate-scale-up checkout-modal-panel"
+        style={{
+          width: '100%',
+          maxWidth: '680px',
+          maxHeight: 'min(94vh, 94dvh)',
+          overflowY: 'auto',
+          backgroundColor: 'var(--bg-primary)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.65)',
+          border: '1px solid var(--border-color)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header with Step Progress Indicator */}
+        <div style={{
+          padding: '24px',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, rgba(128, 0, 255, 0.08) 100%)'
+        }}>
+          <div>
+            <span className="badge badge-accent" style={{ marginBottom: '6px' }}>
+              Step {step} of 3 • Secure Checkout
+            </span>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
+              {step === 1 && '1. Shipping & Customer Details'}
+              {step === 2 && '2. Choose Payment Method'}
+              {step === 3 && '3. Review Order & Pay Money'}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            <XMarkIcon style={{ width: '20px', height: '20px' }} />
+          </button>
+        </div>
+
+        {/* Wizard Steps Bar */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-secondary)'
+        }}>
+          {[
+            { num: 1, label: 'Shipping Info', icon: TruckIcon },
+            { num: 2, label: 'Payment Method', icon: CreditCardIcon },
+            { num: 3, label: 'Review & Pay', icon: ShieldCheckIcon }
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = step === item.num;
+            const isDone = step > item.num;
+            return (
+              <div
+                key={item.num}
+                onClick={() => isDone && setStep(item.num)}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: isActive || isDone ? '700' : '500',
+                  color: isActive ? 'var(--accent-primary)' : isDone ? '#10B981' : 'var(--text-secondary)',
+                  borderBottom: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                  cursor: isDone ? 'pointer' : 'default',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: isActive ? 'var(--accent-primary)' : isDone ? '#10B981' : 'var(--bg-tertiary)',
+                  color: isActive || isDone ? '#000' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.75rem',
+                  fontWeight: '800'
+                }}>
+                  {isDone ? '✓' : item.num}
+                </div>
+                <span>{item.label}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Body Content */}
+        <div style={{ padding: '24px', flex: 1 }}>
+          {/* STEP 1: SHIPPING & USER DETAILS */}
+          {step === 1 && (
+            <form onSubmit={handleNextStep}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Full Name <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <UserIcon style={{ position: 'absolute', left: '12px', top: '12px', width: '18px', height: '18px', color: 'var(--text-secondary)' }} />
+                    <input
+                      type="text"
+                      name="full_name"
+                      value={shippingInfo.full_name}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="e.g. Liam Vance"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 38px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Email Address <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <EnvelopeIcon style={{ position: 'absolute', left: '12px', top: '12px', width: '18px', height: '18px', color: 'var(--text-secondary)' }} />
+                    <input
+                      type="email"
+                      name="email"
+                      value={shippingInfo.email}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="customer@nexusvip.io"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 38px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Contact Phone Number <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <PhoneIcon style={{ position: 'absolute', left: '12px', top: '12px', width: '18px', height: '18px', color: 'var(--text-secondary)' }} />
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={shippingInfo.phone}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="+1 (800) 555-0199"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px 10px 38px',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Delivery Destination Address <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <MapPinIcon style={{ position: 'absolute', left: '12px', top: '12px', width: '18px', height: '18px', color: 'var(--text-secondary)' }} />
+                  <textarea
+                    name="shipping_address"
+                    value={shippingInfo.shipping_address}
+                    onChange={handleInputChange}
+                    required
+                    rows="2"
+                    placeholder="Street address, apartment, city, state, postal code"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px 10px 38px',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Special Delivery Instructions (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="notes"
+                  value={shippingInfo.notes}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Ring doorbell, leave with concierge building lobby"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', width: '100%', marginTop: '8px' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    width: '100%',
+                    padding: '14px 20px',
+                    fontSize: '1rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span>Proceed to Payment Method</span>
+                  <ArrowRightIcon style={{ width: '18px', height: '18px' }} />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* STEP 2: PAYMENT METHOD SELECTION */}
+          {step === 2 && (
+            <div>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                Select how you want to pay for your order (`${grandTotal.toFixed(2)}`):
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+                {[
+                  { id: 'card', name: 'Credit / Debit Card', desc: 'Stripe Elements Secure', icon: CreditCardIcon, badge: 'Instant' },
+                  { id: 'qr', name: 'Bakong KHQR', desc: 'NBC Local QR & Banking', icon: QrCodeIcon, badge: 'Popular' },
+                  { id: 'paypal', name: 'PayPal Smart', desc: 'Fast Express Checkout', icon: CreditCardIcon, badge: 'Buyer Protected' },
+                  { id: 'cod', name: 'Cash on Delivery', desc: 'Pay when delivered', icon: BanknotesIcon, badge: 'Zero Fee' },
+                  { id: 'bank', name: 'Direct Bank Wire', desc: 'SWIFT wire transfer', icon: BuildingLibraryIcon, badge: 'B2B' }
+                ].map((pm) => {
+                  const Icon = pm.icon;
+                  const isSelected = paymentMethod === pm.id;
+                  return (
+                    <div
+                      key={pm.id}
+                      onClick={() => setPaymentMethod(pm.id)}
+                      style={{
+                        padding: '14px',
+                        borderRadius: 'var(--radius-lg)',
+                        border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                        backgroundColor: isSelected ? 'rgba(0, 240, 255, 0.08)' : 'var(--bg-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        position: 'relative'
+                      }}
+                    >
+                      {pm.badge && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          fontSize: '0.62rem',
+                          fontWeight: '700',
+                          padding: '2px 7px',
+                          borderRadius: '12px',
+                          backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                          color: isSelected ? '#000' : 'var(--text-secondary)'
+                        }}>
+                          {pm.badge}
+                        </span>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                          color: isSelected ? '#000' : 'var(--accent-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Icon style={{ width: '18px', height: '18px' }} />
+                        </div>
+                        <span style={{ fontWeight: '700', fontSize: '0.88rem', color: 'var(--text-primary)' }}>{pm.name}</span>
+                      </div>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>{pm.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Dynamic Payment Method Input Fields / Previews */}
+              <div style={{
+                padding: '18px',
+                borderRadius: 'var(--radius-lg)',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                marginBottom: '24px'
+              }}>
+                {/* STRIPE ELEMENTS */}
+                {paymentMethod === 'card' && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-primary)' }}>Stripe Elements Card Form</span>
+                        <span style={{ 
+                          fontSize: '0.68rem', 
+                          padding: '2px 8px', 
+                          borderRadius: '6px', 
+                          backgroundColor: '#635BFF', 
+                          color: '#fff', 
+                          fontWeight: '700', 
+                          letterSpacing: '0.5px' 
+                        }}>
+                          STRIPE
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: '800', 
+                          padding: '2px 8px', 
+                          borderRadius: '4px',
+                          backgroundColor: cardBrand === 'visa' ? '#1A1F71' : cardBrand === 'mastercard' ? '#EB001B' : cardBrand === 'amex' ? '#006FCF' : '#334155',
+                          color: '#fff',
+                          textTransform: 'uppercase'
+                        }}>
+                          {cardBrand}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <ShieldCheckIcon style={{ width: '14px', height: '14px' }} /> 256-Bit SSL
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                          Card Number (Supports Visa, Mastercard, AMEX)
+                        </label>
+                        <input
+                          type="text"
+                          name="number"
+                          maxLength="19"
+                          value={cardDetails.number}
+                          onChange={handleCardChange}
+                          placeholder="4242 4242 4242 4242"
+                          style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '0.95rem' }}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>MM / YY</label>
+                          <input
+                            type="text"
+                            name="expiry"
+                            maxLength="5"
+                            value={cardDetails.expiry}
+                            onChange={handleCardChange}
+                            placeholder="12/28"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>CVC / CVV</label>
+                          <input
+                            type="text"
+                            name="cvv"
+                            maxLength="4"
+                            value={cardDetails.cvv}
+                            onChange={handleCardChange}
+                            placeholder="882"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Cardholder Name</label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={cardDetails.name}
+                            onChange={handleCardChange}
+                            placeholder="John Doe"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* BAKONG KHQR (LOCAL SOLUTION) */}
+                {paymentMethod === 'qr' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{
+                      width: '100%',
+                      maxWidth: '340px',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      border: '2px solid #D61B23',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 10px 30px rgba(214, 27, 35, 0.15)',
+                      textAlign: 'center'
+                    }}>
+                      {/* Red KHQR Top Header */}
+                      <div style={{ backgroundColor: '#D61B23', padding: '14px 16px', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ textAlign: 'left' }}>
+                          <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '1px', display: 'block', lineHeight: 1 }}>KHQR</span>
+                          <span style={{ fontSize: '0.65rem', opacity: 0.9, letterSpacing: '0.5px' }}>Bakong • National Bank of Cambodia</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', backgroundColor: 'rgba(255,255,255,0.2)', padding: '3px 8px', borderRadius: '20px', fontWeight: '700' }}>
+                          {Math.floor(khqrCountdown / 60)}:{(khqrCountdown % 60).toString().padStart(2, '0')}
+                        </div>
+                      </div>
+
+                      {/* KHQR Body */}
+                      <div style={{ padding: '20px 16px' }}>
+                        <p style={{ margin: '0 0 4px', fontSize: '0.85rem', fontWeight: '800', color: '#1E293B', textTransform: 'uppercase' }}>
+                          NEXUS LUXURY & TECH STORE
+                        </p>
+                        <p style={{ margin: '0 0 14px', fontSize: '0.72rem', color: '#64748B', fontFamily: 'monospace' }}>
+                          ID: nexus_store@aclb • Merchant KHQR
+                        </p>
+
+                        {/* Dual Currency Pill */}
+                        <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '8px 12px', marginBottom: '16px' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#D61B23' }}>
+                            ${grandTotal.toFixed(2)} <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: '600' }}>USD</span>
+                          </div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>
+                            ៛ {(Math.round(grandTotal * 4100)).toLocaleString()} KHR
+                          </div>
+                        </div>
+
+                        {/* High-Fidelity SVG QR Code */}
+                        <div style={{
+                          width: '180px',
+                          height: '180px',
+                          margin: '0 auto 14px',
+                          padding: '10px',
+                          border: '2px solid #E2E8F0',
+                          borderRadius: '12px',
+                          backgroundColor: '#FFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          position: 'relative'
+                        }}>
+                          <svg width="150" height="150" viewBox="0 0 100 100" fill="#000000">
+                            {/* Corner Position Detection Patterns */}
+                            <path d="M5 5 h25 v25 h-25 z M10 10 v15 h15 v-15 z M14 14 h7 v7 h-7 z" />
+                            <path d="M70 5 h25 v25 h-25 z M75 10 v15 h15 v-15 z M79 14 h7 v7 h-7 z" />
+                            <path d="M5 70 h25 v25 h-25 z M10 75 v15 h15 v-15 z M14 79 h7 v7 h-7 z" />
+                            {/* QR Data Grid Matrix */}
+                            <rect x="36" y="8" width="5" height="5" />
+                            <rect x="46" y="8" width="5" height="5" />
+                            <rect x="56" y="8" width="5" height="5" />
+                            <rect x="36" y="18" width="5" height="5" />
+                            <rect x="46" y="24" width="5" height="5" />
+                            <rect x="56" y="18" width="5" height="5" />
+                            <rect x="8" y="36" width="5" height="5" />
+                            <rect x="18" y="36" width="5" height="5" />
+                            <rect x="8" y="46" width="5" height="5" />
+                            <rect x="24" y="56" width="5" height="5" />
+                            <rect x="70" y="36" width="5" height="5" />
+                            <rect x="80" y="46" width="5" height="5" />
+                            <rect x="86" y="56" width="5" height="5" />
+                            <rect x="36" y="70" width="5" height="5" />
+                            <rect x="46" y="78" width="5" height="5" />
+                            <rect x="56" y="70" width="5" height="5" />
+                            <rect x="70" y="70" width="5" height="5" />
+                            <rect x="80" y="80" width="5" height="5" />
+                            <rect x="86" y="86" width="5" height="5" />
+                          </svg>
+
+                          {/* Center Bakong Logo Badge */}
+                          <div style={{
+                            position: 'absolute',
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            backgroundColor: '#D61B23',
+                            border: '3px solid #FFF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#FFF',
+                            fontWeight: '900',
+                            fontSize: '0.65rem'
+                          }}>
+                            KHQR
+                          </div>
+                        </div>
+
+                        {khqrVerified ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#16A34A', fontWeight: '700', fontSize: '0.85rem' }}>
+                            <CheckCircleIcon style={{ width: '20px', height: '20px' }} />
+                            <span>Payment Verified via Bakong App</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKhqrVerified(true);
+                              if (onShowToast) {
+                                onShowToast({
+                                  type: 'success',
+                                  title: 'KHQR Received!',
+                                  text: `Bank settlement confirmed for $${grandTotal.toFixed(2)}.`
+                                });
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              backgroundColor: '#D61B23',
+                              color: '#FFF',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontSize: '0.8rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ⚡ Simulate Bakong App Scan & Pay
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PAYPAL SMART BUTTONS */}
+                {paymentMethod === 'paypal' && (
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{ maxWidth: '320px', margin: '0 auto' }}>
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{
+                          padding: '12px',
+                          backgroundColor: '#FFC439',
+                          borderRadius: '8px',
+                          fontWeight: '800',
+                          fontSize: '1rem',
+                          color: '#003087',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}>
+                          <span>Pay with</span> <strong style={{ color: '#0079C1' }}>PayPal</strong>
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '10px',
+                        backgroundColor: '#2C2E2F',
+                        borderRadius: '8px',
+                        fontWeight: '700',
+                        fontSize: '0.9rem',
+                        color: '#FFF',
+                        cursor: 'pointer',
+                        marginBottom: '12px'
+                      }}>
+                        Debit or Credit Card (Powered by PayPal)
+                      </div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Seamlessly checkout using your PayPal balance, linked bank, or PayPal Credit.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* CASH ON DELIVERY */}
+                {paymentMethod === 'cod' && (
+                  <div style={{ textAlign: 'center', padding: '14px' }}>
+                    <BanknotesIcon style={{ width: '40px', height: '40px', color: '#10B981', margin: '0 auto 8px' }} />
+                    <p style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)', margin: '0 0 4px' }}>
+                      Cash on Delivery Selected
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      You will pay exactly <strong style={{ color: '#10B981' }}>${grandTotal.toFixed(2)}</strong> in cash when our VIP courier delivers the package to your address.
+                    </p>
+                  </div>
+                )}
+
+                {/* BANK TRANSFER */}
+                {paymentMethod === 'bank' && (
+                  <div style={{ padding: '8px text-xs' }}>
+                    <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--text-primary)' }}>Direct Wire Details:</h4>
+                    <p style={{ margin: '2px 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}><strong>Bank Name:</strong> Nexus VIP Financial Trust</p>
+                    <p style={{ margin: '2px 0', fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}><strong>Account Number:</strong> 8842-9901-2241-009</p>
+                    <p style={{ margin: '2px 0', fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}><strong>Routing / SWIFT:</strong> NEXUSUS33</p>
+                    <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#F59E0B' }}>
+                      ⚠️ Please include your email or phone number in the bank wiring reference.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="btn btn-secondary"
+                  style={{ flex: '1 1 140px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
+                  <span>Back to Shipping</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="btn btn-primary"
+                  style={{ flex: '1 1 200px', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <span>Review & Confirm Order</span>
+                  <ArrowRightIcon style={{ width: '16px', height: '16px' }} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: FINAL REVIEW & PAY MONEY */}
+          {step === 3 && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                {/* Left: Shipping & Payment Summary */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ padding: '14px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Shipping To</span>
+                      <button type="button" onClick={() => setStep(1)} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
+                    </div>
+                    <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)', margin: '0 0 2px' }}>{shippingInfo.full_name}</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 2px' }}>{shippingInfo.shipping_address}</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontFamily: 'monospace' }}>{shippingInfo.phone} • {shippingInfo.email}</p>
+                  </div>
+
+                  <div style={{ padding: '14px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Payment Method</span>
+                      <button type="button" onClick={() => setStep(2)} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CreditCardIcon style={{ width: '20px', height: '20px', color: 'var(--accent-primary)' }} />
+                      <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                        {paymentMethod === 'card' ? 'Credit / Debit Card' : paymentMethod === 'cod' ? 'Cash on Delivery' : paymentMethod === 'qr' ? 'Instant Banking QR' : 'Direct Wire Transfer'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Price & Order Breakdown */}
+                <div style={{ padding: '16px', borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                      Order Summary ({items.length} items)
+                    </h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      <span>Subtotal:</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>${subtotal.toFixed(2)}</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#10B981', marginBottom: '6px' }}>
+                        <span>Discount Coupon:</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>-${discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      <span>Estimated Tax (8%):</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>${tax.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#10B981', marginBottom: '12px' }}>
+                      <span>VIP Courier Delivery:</span>
+                      <span style={{ fontWeight: '700' }}>FREE</span>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--text-primary)' }}>Grand Total:</span>
+                    <span style={{ fontWeight: '900', fontSize: '1.4rem', color: 'var(--accent-primary)', fontFamily: 'monospace' }}>
+                      ${grandTotal.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Mini List */}
+              <div style={{ maxHeight: '140px', overflowY: 'auto', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '20px', divideY: '1px solid var(--border-color)' }}>
+                {items.map((it, idx) => (
+                  <div key={idx} style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', backgroundColor: 'var(--bg-secondary)' }}>
+                    <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{it.name} (x{it.quantity})</span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: '700', color: 'var(--text-primary)' }}>${(parseFloat(it.price || 0) * it.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: '10px', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="btn btn-secondary"
+                  style={{ width: '100%', padding: '12px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  disabled={isSubmitting}
+                >
+                  <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
+                  <span>Back to Payment Method</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePayAndOrder}
+                  disabled={isSubmitting}
+                  className="btn btn-primary animate-pulse"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    fontSize: '1.05rem',
+                    fontWeight: '900',
+                    background: 'linear-gradient(135deg, #00f0ff 0%, #8000ff 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: '0 10px 25px -5px rgba(0, 240, 255, 0.45)',
+                    cursor: isSubmitting ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  {isSubmitting ? (
+                    <span>Verifying Payment & Syncing Order...</span>
+                  ) : (
+                    <>
+                      <span>💸 Pay ${grandTotal.toFixed(2)} & Confirm Order</span>
+                      <CheckCircleIcon style={{ width: '22px', height: '22px' }} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CheckoutModal;
