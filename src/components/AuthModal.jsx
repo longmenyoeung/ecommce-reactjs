@@ -27,6 +27,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
   // Gmail state for account selection
   const [customGmail, setCustomGmail] = useState('');
   const [customGmailName, setCustomGmailName] = useState('');
+  const [googleAuthMode, setGoogleAuthMode] = useState('login'); // 'login' or 'register'
 
   // VIP Customer Dashboard State
   const [profileView, setProfileView] = useState('overview'); // 'overview' | 'orders' | 'addresses' | 'wishlist' | 'payments'
@@ -59,12 +60,13 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
     setError(null);
   };
 
-  const handleConnectGmail = async (chosenEmail, chosenName) => {
+  const handleConnectGmail = async (chosenEmail, chosenName, explicitMode) => {
     const targetEmail = chosenEmail || customGmail || formData.email;
     if (!targetEmail || !targetEmail.includes('@')) {
       setError('Please provide a valid Gmail address.');
       return;
     }
+    const currentMode = explicitMode || googleAuthMode || (activeTab === 'register' ? 'register' : 'login');
     setGoogleLoading(true);
     setError(null);
     try {
@@ -76,12 +78,13 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
         email: targetEmail,
         name: name,
         google_id: googleUid,
-        avatar: avatar
+        avatar: avatar,
+        mode: currentMode
       });
 
       const token = res.token || res.access_token || 'sanctum_auth_token';
       const userData = res.user || { name: name, email: targetEmail, role: 'user' };
-      setSuccessMsg(res.message || 'Connected directly with Google successfully!');
+      setSuccessMsg(res.message || (currentMode === 'register' ? 'Account created directly with Google successfully!' : 'Connected with Google successfully!'));
       setTimeout(() => {
         if (onAuthSuccess) {
           onAuthSuccess(userData, token);
@@ -94,7 +97,9 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
     }
   };
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = async (preferredMode) => {
+    const chosenMode = preferredMode || (activeTab === 'register' ? 'register' : 'login');
+    setGoogleAuthMode(chosenMode);
     setGoogleLoading(true);
     setError(null);
     setSuccessMsg(null);
@@ -116,7 +121,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                 headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
               });
               const profile = await userInfoRes.json();
-              await handleConnectGmail(profile.email, profile.name);
+              await handleConnectGmail(profile.email, profile.name, chosenMode);
             } catch (fetchErr) {
               setError('Failed to fetch profile from Google.');
               setGoogleLoading(false);
@@ -139,7 +144,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    const targetEmail = resetEmail || formData.email;
+    const targetEmail = (resetEmail || '').trim();
     if (!targetEmail || !targetEmail.includes('@')) {
       setError('Please provide a valid registered email address.');
       return;
@@ -179,7 +184,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
     setError(null);
     setSuccessMsg(null);
     try {
-      const targetEmail = resetEmail || formData.email;
+      const targetEmail = (resetEmail || '').trim();
       const res = await resetPasswordWithOtp(targetEmail, otpCode.trim(), newPassword, confirmPassword);
       setSuccessMsg(res.message || 'Password reset successfully! Please sign in.');
       setTimeout(() => {
@@ -574,7 +579,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                 <>
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+                    onClick={() => { setActiveTab('login'); setGoogleAuthMode('login'); setError(null); setSuccessMsg(null); }}
                     style={{
                       flex: 1,
                       padding: '18px 20px',
@@ -594,7 +599,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
+                    onClick={() => { setActiveTab('register'); setGoogleAuthMode('register'); setError(null); setSuccessMsg(null); }}
                     style={{
                       flex: 1,
                       padding: '18px 20px',
@@ -646,7 +651,32 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                   lineHeight: 1.5,
                   marginBottom: '16px'
                 }}>
-                  {typeof error === 'string' ? error.replace(/^Authentication Error:\s*/i, '') : error}
+                  <div>{typeof error === 'string' ? error.replace(/^Authentication Error:\s*/i, '') : error}</div>
+                  {typeof error === 'string' && error.includes('already exists') && (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('login');
+                          setGoogleAuthMode('login');
+                          setError(null);
+                          setFormData(prev => ({ ...prev, email: customGmail || formData.email }));
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent-primary)',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: '0.85rem',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Click here to Sign In with this email &rarr;
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -683,7 +713,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                       <input
                         type="email"
                         required
-                        value={resetEmail || formData.email}
+                        value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         placeholder="youremail@example.com"
                         style={{
@@ -741,7 +771,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
               {activeTab === 'otp_reset' && (
                 <form onSubmit={handleResetPasswordWithOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: '0 0 4px', lineHeight: 1.5 }}>
-                    Enter the 6-digit OTP code sent to <strong>{resetEmail || formData.email}</strong> and choose a new password.
+                    Enter the 6-digit OTP code sent to <strong>{resetEmail}</strong> and choose a new password.
                   </p>
 
                   <div>
@@ -880,10 +910,12 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
 
                   <div>
                     <h3 style={{ margin: '0 0 6px', fontSize: '1.28rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      Sign in with Google
+                      {googleAuthMode === 'register' ? 'Create Account with Google' : 'Sign in with Google'}
                     </h3>
                     <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                      Choose a Google account to connect with <strong>Men ITC Store</strong>
+                      {googleAuthMode === 'register'
+                        ? 'Choose or enter a Google account to register with Men ITC Store'
+                        : 'Choose a Google account to connect with Men ITC Store'}
                     </p>
                   </div>
 
@@ -936,7 +968,9 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                           {formData.email}
                         </span>
                       </div>
-                      <span style={{ fontSize: '0.78rem', color: '#4285F4', fontWeight: '700' }}>Continue &rarr;</span>
+                      <span style={{ fontSize: '0.78rem', color: '#4285F4', fontWeight: '700' }}>
+                        {googleAuthMode === 'register' ? 'Register &rarr;' : 'Continue &rarr;'}
+                      </span>
                     </div>
                   )}
 
@@ -1012,7 +1046,9 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                         boxShadow: '0 2px 8px rgba(66, 133, 244, 0.3)'
                       }}
                     >
-                      {googleLoading ? 'Connecting to Google...' : 'Direct Connect with Google'}
+                      {googleLoading 
+                        ? (googleAuthMode === 'register' ? 'Creating account...' : 'Connecting to Google...') 
+                        : (googleAuthMode === 'register' ? 'Register with Google' : 'Direct Connect with Google')}
                     </button>
                   </form>
 
@@ -1022,7 +1058,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
 
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('login'); setError(null); }}
+                    onClick={() => { setActiveTab(googleAuthMode === 'register' ? 'register' : 'login'); setError(null); }}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -1032,7 +1068,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                       padding: '6px'
                     }}
                   >
-                    Cancel & return to Sign In
+                    Cancel & return to {googleAuthMode === 'register' ? 'Registration' : 'Sign In'}
                   </button>
                 </div>
               )}
@@ -1104,7 +1140,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                           <button
                             type="button"
                             onClick={() => {
-                              setResetEmail(formData.email);
+                              setResetEmail(formData.email || '');
                               setActiveTab('forgot');
                               setError(null);
                               setSuccessMsg(null);
@@ -1189,7 +1225,7 @@ function AuthModal({ isOpen, onClose, onAuthSuccess, user, onLogout }) {
                   <button
                     type="button"
                     disabled={loading || googleLoading}
-                    onClick={handleGoogleAuth}
+                    onClick={() => handleGoogleAuth(activeTab === 'register' ? 'register' : 'login')}
                     style={{
                       width: '100%',
                       padding: '11px 16px',
