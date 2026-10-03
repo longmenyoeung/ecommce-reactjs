@@ -5,6 +5,9 @@ const BEST_SELLERS_API_URL = `${ENV.API_BASE_URL}/products/best-sellers`;
 const CATEGORIES_API_URL = `${ENV.API_BASE_URL}/categories`;
 const LOGIN_API_URL = `${ENV.API_BASE_URL}/auth/login`;
 const REGISTER_API_URL = `${ENV.API_BASE_URL}/auth/register`;
+const GOOGLE_AUTH_API_URL = `${ENV.API_BASE_URL}/auth/google`;
+const RESET_OTP_API_URL = `${ENV.API_BASE_URL}/auth/reset`;
+const RESET_PASSWORD_API_URL = `${ENV.API_BASE_URL}/auth/reset-password`;
 
 /**
  * Fetch top 10 best sellers leaderboard from Laravel backend API (grouped order_items)
@@ -168,4 +171,74 @@ export async function registerUser(name, email, password) {
 
   return data;
 }
+
+/**
+ * Sign in or create account via Google / Gmail
+ * @param {object} payload - { credential } or { email, name, google_id, avatar }
+ */
+export async function loginWithGoogle(payload) {
+  const response = await fetch(GOOGLE_AUTH_API_URL, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Google authentication failed.'));
+  }
+
+  return data;
+}
+
+/**
+ * Send Password Reset OTP to email
+ * @param {string} email
+ */
+export async function sendResetOtp(email) {
+  const response = await fetch(RESET_OTP_API_URL, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Failed to send OTP.'));
+  }
+
+  return data;
+}
+
+/**
+ * Verify OTP and reset password
+ * @param {string} email
+ * @param {string} otp
+ * @param {string} password
+ * @param {string} password_confirmation
+ */
+export async function resetPasswordWithOtp(email, otp, password, password_confirmation) {
+  const response = await fetch(RESET_PASSWORD_API_URL, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, otp, password, password_confirmation })
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Password reset failed.'));
+  }
+
+  return data;
+}
+
 

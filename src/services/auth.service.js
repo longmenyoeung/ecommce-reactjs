@@ -1,5 +1,5 @@
 import { apiRequest } from '../config/axios';
-import { loginUser, registerUser } from './api';
+import { loginUser, registerUser, loginWithGoogle, sendResetOtp, resetPasswordWithOtp } from './api';
 
 /**
  * Authentication Service layer supporting Laravel Sanctum endpoints
@@ -18,6 +18,28 @@ export const authService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  loginWithGoogle: async (payload) => {
+    try {
+      const data = await loginWithGoogle(payload);
+      const token = data.token || data.access_token;
+      if (data && data.user) {
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+      }
+      if (token) localStorage.setItem('auth_token', token);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  sendResetOtp: async (email) => {
+    return await sendResetOtp(email);
+  },
+
+  resetPassword: async (email, otp, password, passwordConfirmation) => {
+    return await resetPasswordWithOtp(email, otp, password, passwordConfirmation);
   },
 
   register: async (name, email, password) => {
