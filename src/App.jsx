@@ -335,6 +335,7 @@ function StorefrontContent() {
                     }}
                     onQuickView={(prod) => setQuickViewProduct(prod)}
                     searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
                     activeCategory={activeCategory}
                     setActiveCategory={setActiveCategory}
                     categories={categories}

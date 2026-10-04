@@ -530,21 +530,92 @@ input, select, textarea {
   align-items: center !important;
   justify-content: space-between !important;
   flex-wrap: nowrap !important;
-  gap: 20px !important;
+  gap: 24px !important;
+  padding: 12px 0 !important;
 }
-.navbar-header-main {
-  display: contents !important;
-}
+
 .navbar-brand-wrapper {
   order: 1 !important;
-  flex-shrink: 0 !important;
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
 }
+
 .navbar-search-wrapper {
   order: 2 !important;
+  flex: 1 1 auto !important;
+  max-width: 540px !important;
+  min-width: 240px !important;
+  position: relative !important;
 }
+
 .navbar-actions-group {
   order: 3 !important;
-  flex-shrink: 0 !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+/* Desktop Secondary Navigation Bar */
+.navbar-subnav-desktop {
+  display: block;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.navbar-subnav-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.navbar-subnav-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.navbar-subnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.navbar-subnav-link:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+.navbar-subnav-active {
+  color: var(--color-cta) !important;
+  background-color: var(--bg-primary) !important;
+  border-color: var(--color-cta) !important;
+  font-weight: 700 !important;
+}
+
+.navbar-subnav-highlight {
+  color: #ea580c !important;
+  font-weight: 700 !important;
+}
+
+.navbar-subnav-highlight:hover {
+  background-color: rgba(234, 88, 12, 0.08) !important;
 }
 
 /* Laptop & Large Tablet (max-width: 1024px) */
@@ -556,8 +627,15 @@ input, select, textarea {
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
   }
+  .desktop-only-btn {
+    display: none !important;
+  }
   .navbar-top-row {
-    gap: 16px;
+    gap: 14px !important;
+  }
+  .navbar-search-wrapper {
+    min-width: 220px !important;
+    max-width: 100% !important;
   }
 }
 
@@ -572,30 +650,26 @@ input, select, textarea {
     gap: 16px;
   }
 
+  .navbar-subnav-desktop {
+    display: none !important;
+  }
+
   .navbar-top-row {
     display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 10px !important;
-    padding: 12px 12px !important;
-  }
-  .navbar-header-main {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
     justify-content: space-between !important;
-    width: 100% !important;
-    gap: 8px !important;
-    order: 1 !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
   }
+
   .navbar-brand-wrapper {
     order: 1 !important;
     flex: 0 1 auto !important;
     min-width: 130px !important;
     overflow: visible !important;
-    margin-right: auto !important;
   }
+
   .navbar-actions-group {
     order: 2 !important;
     flex: 0 0 auto !important;
@@ -607,24 +681,29 @@ input, select, textarea {
     gap: 6px !important;
     flex-shrink: 0 !important;
   }
+
   .navbar-profile-btn {
     display: none !important;
   }
+
   .navbar-bag-btn {
     padding: 8px 16px !important;
     font-size: 0.88rem !important;
   }
+
   .navbar-auth-btn {
     padding: 6px 12px !important;
     font-size: 0.82rem !important;
     gap: 4px !important;
   }
+
   .navbar-user-badge {
     padding: 3px 8px !important;
     gap: 5px !important;
     flex-shrink: 0 !important;
     white-space: nowrap !important;
   }
+
   .navbar-user-name {
     max-width: 65px !important;
     overflow: hidden !important;
@@ -637,11 +716,18 @@ input, select, textarea {
 
   /* Make search input take full width right below Logo and Bag on row 2 */
   .navbar-search-wrapper {
-    order: 2 !important;
+    order: 3 !important;
     width: 100% !important;
     max-width: 100% !important;
     flex: 0 0 100% !important;
-    margin-top: 2px !important;
+    margin-top: 4px !important;
+    position: relative !important;
+  }
+
+  .navbar-search-wrapper input {
+    font-size: 0.95rem !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
   }
 
   .topbar-container {
@@ -839,11 +925,8 @@ input, select, textarea {
     gap: 8px !important;
     padding: 10px 8px !important;
   }
-  .navbar-header-main {
-    gap: 4px !important;
-    flex-wrap: nowrap !important;
-  }
   .navbar-brand-wrapper {
+    order: 1 !important;
     flex: 0 1 auto !important;
     min-width: 125px !important;
     overflow: visible !important;
@@ -906,7 +989,7 @@ input, select, textarea {
     }
   }
   .navbar-search-wrapper {
-    order: 2 !important;
+    order: 3 !important;
     width: 100% !important;
     max-width: 100% !important;
     flex: 0 0 100% !important;

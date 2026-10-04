@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BoltIcon, MagnifyingGlassIcon, XMarkIcon, ShoppingCartIcon, 
   CubeIcon, UserIcon, LifebuoyIcon, TruckIcon
@@ -16,9 +16,11 @@ function Navbar({
   onOpenTracking, onClearAllNotifications, products = [], onQuickView, onAddToCart 
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [localProducts, setLocalProducts] = useState(products || []);
   const searchWrapperRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Sync products when passed from parent
   useEffect(() => {
@@ -38,7 +40,7 @@ function Navbar({
     }
   }, [products]);
 
-  // Click outside listener to close dropdown
+  // Click outside listener to close dropdown across mouse & touch devices
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
@@ -46,7 +48,11 @@ function Navbar({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   // Filter matching products
@@ -74,18 +80,30 @@ function Navbar({
 
   const handleSelectProduct = (product) => {
     setIsDropdownOpen(false);
+    if (inputRef.current) inputRef.current.blur();
     if (onQuickView) {
       onQuickView(product);
     } else {
-      const el = document.getElementById('catalog-products-header') || document.getElementById('products-section');
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      if (location.pathname !== '/') {
+        navigate('/');
+      }
+      setTimeout(() => {
+        const el = document.getElementById('catalog-products-header') || document.getElementById('products-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
   };
 
   const handleViewAllInCatalog = () => {
     setIsDropdownOpen(false);
-    const el = document.getElementById('catalog-products-header') || document.getElementById('products-section');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    if (inputRef.current) inputRef.current.blur();
+    if (location.pathname !== '/') {
+      navigate('/');
+    }
+    setTimeout(() => {
+      const el = document.getElementById('catalog-products-header') || document.getElementById('products-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
   return (
     <header id="navbar-section" className="app-navbar" style={{
@@ -97,185 +115,405 @@ function Navbar({
       boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
       transition: 'all 0.3s ease'
     }}>
-      {/* Main Navigation Row */}
+      {/* Main Navigation Row: Brand | Search Bar | Utilities (Support, Auth, Notifications, Bag) */}
       <div className="container navbar-top-row">
-        {/* Header Main Row (Brand + Action Buttons) */}
-        <div className="navbar-header-main">
-          {/* Brand Logo */}
-          <div
-            className="navbar-brand-wrapper"
-            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}
-            onClick={() => {
-              setActiveCategory('All');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          >
-            <div className="navbar-brand-icon" style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--color-cta)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              boxShadow: '0 4px 14px rgba(30, 30, 30, 0.2)',
-              flexShrink: 0
-            }}>
-              <BoltIcon style={{ width: '24px', height: '24px', color: '#fff' }} />
-            </div>
-            <div style={{ minWidth: 0, overflow: 'hidden' }}>
-              <h1 className="navbar-brand-title" style={{ fontSize: '1.45rem', fontWeight: '800', margin: 0, lineHeight: 1.1, color: 'var(--text-primary)', letterSpacing: '-0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Men ICT <span style={{ color: 'var(--accent-primary)' }}>Store</span>
-              </h1>
-              <span className="navbar-brand-subtitle" style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '700', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Premium Essentials
-              </span>
-            </div>
+        {/* Brand Logo */}
+        <div
+          className="navbar-brand-wrapper"
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flexShrink: 0 }}
+          onClick={() => {
+            setActiveCategory('All');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        >
+          <div className="navbar-brand-icon" style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--color-cta)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            boxShadow: '0 4px 14px rgba(30, 30, 30, 0.2)',
+            flexShrink: 0
+          }}>
+            <BoltIcon style={{ width: '24px', height: '24px', color: '#fff' }} />
           </div>
+          <div style={{ minWidth: 0 }}>
+            <h1 className="navbar-brand-title" style={{ fontSize: '1.45rem', fontWeight: '800', margin: 0, lineHeight: 1.1, color: 'var(--text-primary)', letterSpacing: '-0.03em', whiteSpace: 'nowrap' }}>
+              Men ICT <span style={{ color: 'var(--accent-primary)' }}>Store</span>
+            </h1>
+            <span className="navbar-brand-subtitle" style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '700', display: 'block', whiteSpace: 'nowrap' }}>
+              Premium Essentials
+            </span>
+          </div>
+        </div>
 
-        {/* Action Buttons & Quick Nav */}
-        <div className="navbar-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
-          <button
-            onClick={() => {
-              if (onOpenCatalog) onOpenCatalog();
-              else {
-                setActiveCategory('All');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+        {/* Search Bar with Live List Down Product Dropdown */}
+        <div 
+          ref={searchWrapperRef}
+          className="navbar-search-wrapper" 
+          style={{
+            flex: 1,
+            maxWidth: '540px',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <span style={{ position: 'absolute', left: '16px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+            <MagnifyingGlassIcon style={{ width: '18px', height: '18px' }} />
+          </span>
+
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search catalog products..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              if (e.target.value.trim().length > 0) {
+                setIsDropdownOpen(true);
               }
             }}
-            className="desktop-only-btn"
-            style={{
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'transparent',
-              border: '1px solid transparent',
-              color: 'var(--text-primary)',
-              fontWeight: '600',
-              fontSize: '0.88rem',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            Products
-          </button>
-
-          <button
-            onClick={() => {
-              const el = document.getElementById('best-sellers-section');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-              else window.location.href = '/#best-sellers-section';
-            }}
-            className="desktop-only-btn"
-            style={{
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'rgba(245, 158, 11, 0.1)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              color: '#F59E0B',
-              fontWeight: '700',
-              fontSize: '0.88rem',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.2)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
-            }}
-          >
-            🔥 Best Sellers
-          </button>
-
-          <button
-            onClick={onOpenAbout}
-            className="desktop-only-btn"
-            style={{
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'transparent',
-              border: '1px solid transparent',
-              color: 'var(--text-primary)',
-              fontWeight: '600',
-              fontSize: '0.88rem',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            About Us
-          </button>
-
-          <button
-            onClick={onOpenContact}
-            className="desktop-only-btn"
-            style={{
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'transparent',
-              border: '1px solid transparent',
-              color: 'var(--text-primary)',
-              fontWeight: '600',
-              fontSize: '0.88rem',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            Contact
-          </button>
-
-          <Link
-            to="/track"
-            className="desktop-only-btn"
-            style={{
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: location.pathname.startsWith('/track') ? 'var(--bg-secondary)' : 'transparent',
-              border: location.pathname.startsWith('/track') ? '1px solid var(--border-color)' : '1px solid transparent',
-              color: location.pathname.startsWith('/track') ? 'var(--accent-primary)' : 'var(--text-primary)',
-              fontWeight: '600',
-              fontSize: '0.88rem',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              textDecoration: 'none'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-            }}
-            onMouseOut={(e) => {
-              if (!location.pathname.startsWith('/track')) {
-                e.currentTarget.style.backgroundColor = 'transparent';
+            onFocus={() => {
+              if (searchTerm && searchTerm.trim().length > 0) {
+                setIsDropdownOpen(true);
               }
             }}
-          >
-            <TruckIcon style={{ width: '17px', height: '17px', color: 'var(--accent-primary)' }} />
-            <span>Track Order</span>
-          </Link>
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleViewAllInCatalog();
+              } else if (e.key === 'Escape') {
+                setIsDropdownOpen(false);
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '11px 40px 11px 44px',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--bg-secondary)',
+              border: isDropdownOpen && searchTerm && searchTerm.trim().length > 0 ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              fontSize: '0.9rem',
+              transition: 'all 0.25s',
+              outline: 'none',
+              boxShadow: isDropdownOpen && searchTerm && searchTerm.trim().length > 0 ? '0 0 0 3px rgba(122, 147, 168, 0.15)' : 'none'
+            }}
+          />
 
+          {searchTerm && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setSearchTerm('');
+                setIsDropdownOpen(false);
+              }}
+              onClick={() => {
+                setSearchTerm('');
+                setIsDropdownOpen(false);
+              }}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: 'var(--bg-tertiary, rgba(0,0,0,0.06))',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+              title="Clear search"
+              aria-label="Clear search query"
+            >
+              <XMarkIcon style={{ width: '16px', height: '16px' }} />
+            </button>
+          )}
+
+          {/* Live Search List Down Product Dropdown */}
+          {isDropdownOpen && searchTerm && searchTerm.trim().length > 0 && (
+            <div 
+              className="navbar-search-dropdown"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                left: 0,
+                right: 0,
+                backgroundColor: 'var(--bg-primary)',
+                borderRadius: '16px',
+                border: '1px solid var(--border-color)',
+                boxShadow: '0 18px 45px rgba(0, 0, 0, 0.15)',
+                zIndex: 1000,
+                overflow: 'hidden',
+                animation: 'fadeInDropdown 0.18s ease-out'
+              }}
+            >
+              {/* Header Bar */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 16px',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-secondary)',
+                fontSize: '0.78rem',
+                gap: '8px'
+              }}>
+                <span style={{
+                  fontWeight: '700',
+                  color: 'var(--text-secondary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  minWidth: 0
+                }}>
+                  Results for <span style={{ color: 'var(--text-primary)' }}>"{searchTerm}"</span>
+                </span>
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                  color: searchResults.length > 0 ? 'var(--color-success)' : 'var(--text-muted)',
+                  backgroundColor: searchResults.length > 0 ? 'var(--color-success-bg)' : 'transparent',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  flexShrink: 0
+                }}>
+                  {searchResults.length} {searchResults.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+
+              {/* Category Match Chip if applicable */}
+              {matchingCategories.length > 0 && (
+                <div style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'var(--bg-primary)',
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flexWrap: 'wrap'
+                }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600' }}>Filter Category:</span>
+                  {matchingCategories.map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        setActiveCategory(cat);
+                        handleViewAllInCatalog();
+                      }}
+                      onClick={() => {
+                        setActiveCategory(cat);
+                        handleViewAllInCatalog();
+                      }}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: '9999px',
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        backgroundColor: activeCategory === cat ? 'var(--color-cta)' : 'var(--bg-secondary)',
+                        color: activeCategory === cat ? '#ffffff' : 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Product Results List */}
+              <div style={{
+                maxHeight: 'min(62vh, 380px)',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
+              }}>
+                {searchResults.length === 0 ? (
+                  <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                    <MagnifyingGlassIcon style={{ width: '32px', height: '32px', color: 'var(--text-muted)', margin: '0 auto 8px' }} />
+                    <p style={{ margin: '0 0 4px', fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      No products found
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      We couldn't find any products matching "{searchTerm}". Try another keyword or browse below.
+                    </p>
+                  </div>
+                ) : (
+                  searchResults.slice(0, 7).map((item) => {
+                    const imgUrl = item.image ? getImageUrl(item.image) : null;
+                    const catName = getCategoryName(item);
+                    const inStock = (item.stock ?? 99) > 0;
+                    return (
+                      <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          handleSelectProduct(item);
+                        }}
+                        onClick={() => handleSelectProduct(item)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '10px 16px',
+                          borderBottom: '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        {/* Thumbnail */}
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '10px',
+                          backgroundColor: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          flexShrink: 0
+                        }}>
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={item.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <CubeIcon style={{ width: '22px', height: '22px', color: 'var(--text-muted)' }} />
+                          )}
+                        </div>
+
+                        {/* Title & Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                              {catName || 'Product'}
+                            </span>
+                            {inStock ? (
+                              <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#10B981', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }} /> In Stock
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#EF4444' }}>
+                                Out of Stock
+                              </span>
+                            )}
+                          </div>
+                          <div style={{
+                            fontSize: '0.88rem',
+                            fontWeight: '700',
+                            color: 'var(--text-primary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {item.name}
+                          </div>
+                        </div>
+
+                        {/* Price & Quick Action */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            ${parseFloat(item.price || 0).toFixed(2)}
+                          </span>
+
+                          {onAddToCart && inStock && (
+                            <button
+                              type="button"
+                              title="Add directly to Bag"
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onAddToCart(item);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToCart(item);
+                              }}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: 'var(--radius-full)',
+                                backgroundColor: 'var(--color-cta)',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-cta-hover)'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-cta)'}
+                            >
+                              <ShoppingCartIcon style={{ width: '13px', height: '13px' }} />
+                              <span>+ Bag</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Bottom Footer View All */}
+              {searchResults.length > 0 && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleViewAllInCatalog();
+                  }}
+                  onClick={() => handleViewAllInCatalog()}
+                  style={{
+                    padding: '11px 16px',
+                    backgroundColor: 'var(--bg-secondary)',
+                    borderTop: '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    color: 'var(--text-primary)',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-glass-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <MagnifyingGlassIcon style={{ width: '15px', height: '15px', flexShrink: 0 }} />
+                    View all {searchResults.length} in catalog
+                  </span>
+                  <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>&darr;</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right User Utility Actions: Support, Profile/Sign In, Notifications, Bag */}
+        <div className="navbar-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <button
             onClick={onOpenSupport}
             title="Help & Support Center"
@@ -304,7 +542,7 @@ function Navbar({
             }}
           >
             <LifebuoyIcon style={{ width: '18px', height: '18px', color: 'var(--accent-primary)' }} />
-            <span>Support</span>
+            <span className="desktop-only-btn">Support</span>
             {supportUnreadCount > 0 && (
               <span style={{
                 backgroundColor: '#ef4444',
@@ -411,13 +649,13 @@ function Navbar({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '10px 22px',
+              padding: '10px 20px',
               borderRadius: 'var(--radius-full)',
               backgroundColor: 'var(--color-cta)',
               border: '1px solid var(--color-cta)',
               color: '#ffffff',
               fontWeight: '600',
-              fontSize: '0.95rem',
+              fontSize: '0.92rem',
               boxShadow: '0 4px 14px rgba(30, 30, 30, 0.2)',
               transition: 'all 0.2s ease',
               cursor: 'pointer'
@@ -447,317 +685,50 @@ function Navbar({
             )}
           </button>
         </div>
-        </div> {/* End navbar-header-main */}
+      </div>
 
-        {/* Search Bar with Live List Down Product Dropdown */}
-        <div 
-          ref={searchWrapperRef}
-          className="navbar-search-wrapper" 
-          style={{
-            flex: 1,
-            maxWidth: '540px',
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <span style={{ position: 'absolute', left: '16px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
-            <MagnifyingGlassIcon style={{ width: '18px', height: '18px' }} />
-          </span>
-
-          <input
-            type="text"
-            placeholder="Search catalog products..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              if (e.target.value.trim().length > 0) {
-                setIsDropdownOpen(true);
+      {/* Desktop Secondary Navigation Bar: Products, Best Sellers, Track Order, About, Contact */}
+      <div className="navbar-subnav-desktop">
+        <div className="container navbar-subnav-inner">
+          <button
+            onClick={() => {
+              if (onOpenCatalog) onOpenCatalog();
+              else {
+                setActiveCategory('All');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }
             }}
-            onFocus={() => {
-              if (searchTerm && searchTerm.trim().length > 0) {
-                setIsDropdownOpen(true);
-              }
+            className="navbar-subnav-link"
+          >
+            Products
+          </button>
+
+          <button
+            onClick={() => {
+              const el = document.getElementById('best-sellers-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+              else window.location.href = '/#best-sellers-section';
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleViewAllInCatalog();
-              } else if (e.key === 'Escape') {
-                setIsDropdownOpen(false);
-              }
-            }}
-            style={{
-              width: '100%',
-              padding: '11px 40px 11px 44px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--bg-secondary)',
-              border: isDropdownOpen && searchTerm && searchTerm.trim().length > 0 ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
-              color: 'var(--text-primary)',
-              fontSize: '0.9rem',
-              transition: 'all 0.25s',
-              boxShadow: isDropdownOpen && searchTerm && searchTerm.trim().length > 0 ? '0 0 0 3px rgba(122, 147, 168, 0.15)' : 'none'
-            }}
-          />
+            className="navbar-subnav-link navbar-subnav-highlight"
+          >
+            🔥 Best Sellers
+          </button>
 
-          {searchTerm && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setIsDropdownOpen(false);
-              }}
-              style={{ position: 'absolute', right: '14px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '4px', cursor: 'pointer' }}
-              title="Clear search"
-            >
-              <XMarkIcon style={{ width: '18px', height: '18px' }} />
-            </button>
-          )}
+          <Link
+            to="/track"
+            className={`navbar-subnav-link ${location.pathname.startsWith('/track') ? 'navbar-subnav-active' : ''}`}
+          >
+            <TruckIcon style={{ width: '16px', height: '16px' }} />
+            <span>Track Order</span>
+          </Link>
 
-          {/* Live Search List Down Product Dropdown */}
-          {isDropdownOpen && searchTerm && searchTerm.trim().length > 0 && (
-            <div 
-              className="navbar-search-dropdown"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                left: 0,
-                right: 0,
-                backgroundColor: 'var(--bg-primary)',
-                borderRadius: '16px',
-                border: '1px solid var(--border-color)',
-                boxShadow: '0 18px 45px rgba(0, 0, 0, 0.12)',
-                zIndex: 1000,
-                overflow: 'hidden',
-                animation: 'fadeInDropdown 0.18s ease-out'
-              }}
-            >
-              {/* Header Bar */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 16px',
-                borderBottom: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-secondary)',
-                fontSize: '0.78rem'
-              }}>
-                <span style={{ fontWeight: '700', color: 'var(--text-secondary)' }}>
-                  Products matching <span style={{ color: 'var(--text-primary)' }}>"{searchTerm}"</span>
-                </span>
-                <span style={{
-                  fontSize: '0.72rem',
-                  fontWeight: '700',
-                  color: searchResults.length > 0 ? 'var(--color-success)' : 'var(--text-muted)',
-                  backgroundColor: searchResults.length > 0 ? 'var(--color-success-bg)' : 'transparent',
-                  padding: '2px 8px',
-                  borderRadius: '9999px'
-                }}>
-                  {searchResults.length} {searchResults.length === 1 ? 'item' : 'items'}
-                </span>
-              </div>
+          <button onClick={onOpenAbout} className="navbar-subnav-link">
+            About Us
+          </button>
 
-              {/* Category Match Chip if applicable */}
-              {matchingCategories.length > 0 && (
-                <div style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'var(--bg-primary)',
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  flexWrap: 'wrap'
-                }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600' }}>Filter Category:</span>
-                  {matchingCategories.map(cat => (
-                    <button
-                      key={cat}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setActiveCategory(cat);
-                        handleViewAllInCatalog();
-                      }}
-                      style={{
-                        padding: '3px 10px',
-                        borderRadius: '9999px',
-                        fontSize: '0.72rem',
-                        fontWeight: '700',
-                        backgroundColor: activeCategory === cat ? 'var(--color-cta)' : 'var(--bg-secondary)',
-                        color: activeCategory === cat ? '#ffffff' : 'var(--text-primary)',
-                        border: '1px solid var(--border-color)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Product Results List */}
-              <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
-                {searchResults.length === 0 ? (
-                  <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-                    <MagnifyingGlassIcon style={{ width: '32px', height: '32px', color: 'var(--text-muted)', margin: '0 auto 8px' }} />
-                    <p style={{ margin: '0 0 4px', fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      No products found
-                    </p>
-                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      We couldn't find any products matching "{searchTerm}". Try another keyword or browse below.
-                    </p>
-                  </div>
-                ) : (
-                  searchResults.slice(0, 7).map((item) => {
-                    const imgUrl = item.image ? getImageUrl(item.image) : null;
-                    const catName = getCategoryName(item);
-                    const inStock = (item.stock ?? 99) > 0;
-                    return (
-                      <div
-                        key={item.id}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleSelectProduct(item);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          padding: '10px 16px',
-                          borderBottom: '1px solid var(--border-color)',
-                          cursor: 'pointer',
-                          transition: 'background-color 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        {/* Thumbnail */}
-                        <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '10px',
-                          backgroundColor: 'var(--bg-secondary)',
-                          border: '1px solid var(--border-color)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                          flexShrink: 0
-                        }}>
-                          {imgUrl ? (
-                            <img
-                              src={imgUrl}
-                              alt={item.name}
-                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <CubeIcon style={{ width: '22px', height: '22px', color: 'var(--text-muted)' }} />
-                          )}
-                        </div>
-
-                        {/* Title & Info */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                              {catName || 'Product'}
-                            </span>
-                            {inStock ? (
-                              <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#10B981', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }} /> In Stock
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#EF4444' }}>
-                                Out of Stock
-                              </span>
-                            )}
-                          </div>
-                          <div style={{
-                            fontSize: '0.88rem',
-                            fontWeight: '700',
-                            color: 'var(--text-primary)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            {item.name}
-                          </div>
-                        </div>
-
-                        {/* Price & Quick Action */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                          <span style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                            ${parseFloat(item.price || 0).toFixed(2)}
-                          </span>
-
-                          {onAddToCart && inStock && (
-                            <button
-                              type="button"
-                              title="Add directly to Bag"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onAddToCart(item);
-                              }}
-                              style={{
-                                padding: '6px 10px',
-                                borderRadius: 'var(--radius-full)',
-                                backgroundColor: 'var(--color-cta)',
-                                color: '#ffffff',
-                                border: 'none',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-cta-hover)'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-cta)'}
-                            >
-                              <ShoppingCartIcon style={{ width: '13px', height: '13px' }} />
-                              <span>+ Bag</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Bottom Footer View All */}
-              {searchResults.length > 0 && (
-                <div
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleViewAllInCatalog();
-                  }}
-                  style={{
-                    padding: '11px 16px',
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderTop: '1px solid var(--border-color)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    fontSize: '0.82rem',
-                    fontWeight: '700',
-                    color: 'var(--text-primary)',
-                    transition: 'background-color 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-glass-hover)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MagnifyingGlassIcon style={{ width: '15px', height: '15px' }} />
-                    View all {searchResults.length} matching products in catalog
-                  </span>
-                  <span style={{ fontSize: '0.9rem' }}>&darr;</span>
-                </div>
-              )}
-            </div>
-          )}
+          <button onClick={onOpenContact} className="navbar-subnav-link">
+            Contact
+          </button>
         </div>
       </div>
     </header>

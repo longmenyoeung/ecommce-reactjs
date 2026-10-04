@@ -39,6 +39,7 @@ export function AppRoutes({
   onAddToCart,
   onQuickView,
   searchTerm,
+  setSearchTerm,
   activeCategory,
   setActiveCategory,
   categories,
@@ -61,6 +62,7 @@ export function AppRoutes({
               onAddToCart={onAddToCart}
               onQuickView={onQuickView}
               searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
               activeCategory={activeCategory}
               setActiveCategory={setActiveCategory}
               categories={categories}
@@ -101,6 +103,7 @@ export function AppRoutes({
               onAddToCart={onAddToCart}
               onQuickView={onQuickView}
               searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
               activeCategory={activeCategory}
               setActiveCategory={setActiveCategory}
               categories={categories}

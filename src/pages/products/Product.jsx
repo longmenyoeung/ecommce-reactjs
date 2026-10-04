@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 
-function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActiveCategory, categories, setCategories, onProductsLoaded, onOpenAbout, onOpenContact }) {
+function Product({ onAddToCart, onQuickView, searchTerm, setSearchTerm, activeCategory, setActiveCategory, categories, setCategories, onProductsLoaded, onOpenAbout, onOpenContact }) {
   const [products, setProducts] = useState([]);
   const [bestSellersMap, setBestSellersMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -115,13 +115,17 @@ function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActi
       });
     }
 
-    // Filter by Search Term
+    // Filter by Search Term (matches Name, Description, and Category)
     if (searchTerm && searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase().trim();
-      result = result.filter(p => 
-        (p.name && p.name.toLowerCase().includes(term)) ||
-        (p.description && p.description.toLowerCase().includes(term))
-      );
+      result = result.filter(p => {
+        const catName = getCategoryName(p) || '';
+        return (
+          (p.name && p.name.toLowerCase().includes(term)) ||
+          (p.description && p.description.toLowerCase().includes(term)) ||
+          (catName && catName.toLowerCase().includes(term))
+        );
+      });
     }
 
     // Filter by In-Stock availability
@@ -586,26 +590,60 @@ function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActi
         <div className="glass-panel" style={{ padding: '16px 20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0, color: 'var(--text-primary)' }}>
-              {activeCategory === 'All' ? 'All Products' : activeCategory}
+              {searchTerm ? (
+                <>
+                  Search: <span style={{ color: 'var(--accent-primary)' }}>"{searchTerm}"</span>
+                  {activeCategory !== 'All' && <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}> in {activeCategory}</span>}
+                </>
+              ) : (
+                activeCategory === 'All' ? 'All Products' : activeCategory
+              )}
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '400', marginLeft: '10px' }}>
                 ({filteredAndSortedProducts.length} items found)
               </span>
             </h3>
 
-            {(activeCategory !== 'All' || maxPrice < 2500 || inStockOnly || searchTerm) && (
-              <button
-                onClick={() => {
-                  setActiveCategory('All');
-                  setMaxPrice(2500);
-                  setInStockOnly(false);
-                  setSortBy('featured');
-                }}
-                className="badge"
-                style={{ cursor: 'pointer', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
-              >
-                Reset All Filters
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (setSearchTerm) setSearchTerm('');
+                  }}
+                  className="badge"
+                  style={{
+                    cursor: 'pointer',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: 'var(--accent-primary)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Clear search term"
+                >
+                  <span>"{searchTerm}"</span>
+                  <span style={{ fontWeight: 'bold' }}>&times;</span>
+                </button>
+              )}
+
+              {(activeCategory !== 'All' || maxPrice < 2500 || inStockOnly || searchTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory('All');
+                    setMaxPrice(2500);
+                    setInStockOnly(false);
+                    setSortBy('featured');
+                    if (setSearchTerm) setSearchTerm('');
+                  }}
+                  className="badge"
+                  style={{ cursor: 'pointer', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
+                >
+                  Reset All Filters
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
@@ -714,12 +752,17 @@ function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActi
               We couldn't find any products matching "{searchTerm || activeCategory}". Try searching for another keyword or selecting a different category.
             </p>
             <button
+              type="button"
               onClick={() => {
-                // reset filters
+                setActiveCategory('All');
+                setMaxPrice(2500);
+                setInStockOnly(false);
+                setSortBy('featured');
+                if (setSearchTerm) setSearchTerm('');
               }}
               className="btn-secondary"
             >
-              Reset Filters
+              Reset All Filters
             </button>
           </div>
         ) : (
