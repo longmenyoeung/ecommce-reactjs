@@ -180,7 +180,15 @@ export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
 
   const handleAddToCart = () => {
     if (!product) return;
-    addToCart(product, quantity);
+    const res = addToCart(product, quantity);
+    if (res && !res.success) {
+      showToast({
+        type: 'remove',
+        title: 'Stock Limit Reached',
+        text: res.message || 'Cannot add more items to cart.'
+      });
+      return;
+    }
     showToast({
       type: 'success',
       title: 'Added to Bag',
@@ -190,7 +198,15 @@ export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
 
   const handleBuyNow = () => {
     if (!product) return;
-    addToCart(product, quantity);
+    const res = addToCart(product, quantity);
+    if (res && !res.success) {
+      showToast({
+        type: 'remove',
+        title: 'Stock Limit Reached',
+        text: res.message || 'Cannot proceed: not enough stock available.'
+      });
+      return;
+    }
     if (onOpenCheckout) {
       onOpenCheckout({
         items: [
@@ -199,7 +215,8 @@ export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
             name: product.name,
             price: parseFloat(product.price || 0),
             quantity,
-            image: product.image
+            image: product.image,
+            stock: product.stock
           }
         ],
         subtotal: parseFloat(product.price || 0) * quantity
@@ -469,15 +486,28 @@ export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
                 </button>
                 <span style={{ padding: '0 12px', fontWeight: '700', fontSize: '0.95rem' }}>{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => Math.min((product.stock || 99), q + 1))}
+                  onClick={() => {
+                    const maxStock = (product.stock !== undefined && product.stock !== null) ? Number(product.stock) : 99;
+                    if (quantity >= maxStock) {
+                      showToast({
+                        type: 'remove',
+                        title: 'Stock Limit',
+                        text: `Only ${maxStock} unit(s) available in stock for this product.`
+                      });
+                      return;
+                    }
+                    setQuantity((q) => q + 1);
+                  }}
                   style={{
                     padding: '8px 16px',
                     background: 'none',
                     border: 'none',
                     color: 'var(--text-primary)',
-                    cursor: 'pointer',
+                    cursor: (product.stock !== undefined && quantity >= product.stock) ? 'not-allowed' : 'pointer',
+                    opacity: (product.stock !== undefined && quantity >= product.stock) ? 0.4 : 1,
                     fontSize: '1.1rem'
                   }}
+                  title={product.stock !== undefined && quantity >= product.stock ? `Max stock reached (${product.stock})` : "Increase quantity"}
                 >
                   +
                 </button>

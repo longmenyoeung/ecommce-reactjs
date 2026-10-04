@@ -1,10 +1,24 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { CheckCircleIcon, InformationCircleIcon, XMarkIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
+
+  // Tracks the pending auto-dismiss timeout so a NEW toast can cancel the
+  // previous toast's timer. Without this, an earlier toast dismissed the newer
+  // one early: the checkout -> payment -> order-confirmed chain fires several
+  // toasts a few seconds apart, and the newest notification disappeared long
+  // before its own 4.5s window was over.
+  const dismissTimerRef = useRef(null);
+
+  const clearDismissTimer = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+  }, []);
 
   const showToast = useCallback((options) => {
     if (!options) return;
@@ -17,17 +31,22 @@ export function ToastProvider({ children }) {
         };
     setToast(toastObj);
 
-    // Auto-dismiss after 4.5s
-    const timer = setTimeout(() => {
+    // Auto-dismiss after 4.5s (always restarted from now, never inherited
+    // from a toast that was already on screen).
+    clearDismissTimer();
+    dismissTimerRef.current = setTimeout(() => {
       setToast(null);
+      dismissTimerRef.current = null;
     }, 4500);
-
-    return () => clearTimeout(timer);
-  }, []);
+  }, [clearDismissTimer]);
 
   const dismissToast = useCallback(() => {
+    clearDismissTimer();
     setToast(null);
-  }, []);
+  }, [clearDismissTimer]);
+
+  // Clear any pending timer if the provider unmounts.
+  useEffect(() => clearDismissTimer, [clearDismissTimer]);
 
   return (
     <ToastContext.Provider value={{ toast, showToast, dismissToast }}>

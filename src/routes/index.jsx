@@ -5,6 +5,8 @@ import ProductDetailPage from '../pages/products/ProductDetailPage';
 import OrderTrackingPage from '../pages/orders/OrderTrackingPage';
 import CustomerAccountPage from '../pages/account/CustomerAccountPage';
 
+import OrderSuccessPage from '../pages/orders/OrderSuccessPage';
+
 /**
  * Main App Routes configuration
  */
@@ -58,6 +60,9 @@ export function AppRoutes({
       {/* Dedicated Order Tracking */}
       <Route path="/track" element={<OrderTrackingPage />} />
       <Route path="/track/:orderId" element={<OrderTrackingPage />} />
+
+      {/* Order Payment Success / AnajakPay Callback */}
+      <Route path="/orders/success" element={<OrderSuccessPage />} />
 
       {/* Customer Account Portal */}
       <Route path="/account" element={<CustomerAccountPage onOpenTracking={onOpenTracking} />} />

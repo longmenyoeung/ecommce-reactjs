@@ -22,6 +22,55 @@ import { orderService } from './services/order.service';
 import { supportService } from './services/support.service';
 import { fetchProducts } from './services/api';
 
+/* ---------------------------------------------------------------------------
+ * Notification feed storage (per-account / owner-only)
+ * ---------------------------------------------------------------------------
+ * Alerts are private: the feed is namespaced by user id so a second account
+ * signing in on the same browser can never read the previous account's order,
+ * tracking or promo alerts. Signed-out visitors keep no feed at all.
+ * ------------------------------------------------------------------------- */
+const LEGACY_NOTIFICATION_KEY = 'nexus_notifications';
+
+const DEMO_NOTIFICATIONS = [
+    {
+        id: 'notif-1',
+        title: '📦 Order #10245 Shipped & In Transit',
+        text: 'Your Executive Ultralight Watch has departed the Logistics Hub and is on its way via FedEx Priority Express.',
+        time: '1 hour ago',
+        unread: true,
+        type: 'tracking',
+        // Demo copy only: order #10245 does not exist, so this alert
+        // deliberately has no deep-link target any more.
+        orderId: null
+    },
+    {
+        id: 'notif-2',
+        title: '🎉 VIP Promo Unlocked: NEXUSVIP20',
+        text: 'Enjoy 20% off plus free express delivery on all new premium arrivals this week!',
+        time: '1 day ago',
+        unread: false,
+        type: 'promo'
+    }
+];
+
+/** Storage key holding one account's alert feed (null while signed out). */
+const notificationStorageKey = (userId) => (userId ? `${LEGACY_NOTIFICATION_KEY}_${userId}` : null);
+
+/** Per-account dedupe marker for the "order shipped" alert. */
+const shippedMarkerKey = (userId, orderId) => `notif_shipped_${userId || 'guest'}_${orderId}`;
+
+/** Read one account's own feed (demo seeds only on that account's first sign-in). */
+const readNotificationFeed = (userId) => {
+    const key = notificationStorageKey(userId);
+    if (!key) return [];
+    try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : DEMO_NOTIFICATIONS;
+    } catch {
+        return [];
+    }
+};
+
 function StorefrontContent() {
     const { cartItems, isCartOpen, setIsCartOpen, addToCart, updateQuantity, removeFromCart, clearCart, totalCartCount } = useCart();
     const { user, login, logout } = useAuth();
@@ -50,35 +99,48 @@ function StorefrontContent() {
         }).catch(() => {});
     }, []);
 
-    // Notifications state
-    const [notifications, setNotifications] = useState(() => {
-        try {
-            const saved = localStorage.getItem('nexus_notifications');
-            return saved ? JSON.parse(saved) : [
-                {
-                    id: 'notif-1',
-                    title: '📦 Order #10245 Shipped & In Transit',
-                    text: 'Your Executive Ultralight Watch has departed the Logistics Hub and is on its way via FedEx Priority Express.',
-                    time: '1 hour ago',
-                    unread: true,
-                    type: 'tracking',
-                    orderId: '10245'
-                },
-                {
-                    id: 'notif-2',
-                    title: '🎉 VIP Promo Unlocked: NEXUSVIP20',
-                    text: 'Enjoy 20% off plus free express delivery on all new premium arrivals this week!',
-                    time: '1 day ago',
-                    unread: false,
-                    type: 'promo'
-                }
-            ];
-        } catch {
-            return [];
-        }
-    });
+    // Per-account alert feed. `notifFeedOwnerId` records which account the
+    // in-memory feed belongs to, so a freshly signed-in account is never shown
+    // the previous account's alerts.
+    const userId = user?.id ?? null;
+    const [notifications, setNotifications] = useState(() => readNotificationFeed(userId));
+    const [notifFeedOwnerId, setNotifFeedOwnerId] = useState(() => userId);
 
-    const handleAddNotification = (title, text, type = 'tracking', orderId = null) => {
+    // Adopt the signed-in account's own feed the instant the account changes.
+    // Declared before the persist effect below so its guard can never write one
+    // account's alerts into another account's storage bucket.
+    useEffect(() => {
+        setNotifFeedOwnerId(userId);
+        setNotifications(readNotificationFeed(userId));
+        // Legacy builds kept one shared 'nexus_notifications' key for every
+        // visitor; purge it so it can never bleed across accounts.
+        try {
+            localStorage.removeItem(LEGACY_NOTIFICATION_KEY);
+        } catch {
+            // Storage unavailable (private mode) - nothing to purge.
+        }
+    }, [userId]);
+
+    // Persist the alert feed. This lives in an effect instead of inside the
+    // setState updaters: React StrictMode double-invokes updaters in dev, so
+    // every localStorage write used to run twice.
+    useEffect(() => {
+        const key = notificationStorageKey(userId);
+        // Never persist for a signed-out visitor, and never while the rendered
+        // feed still belongs to a previous account.
+        if (!key || notifFeedOwnerId !== userId) return;
+        try {
+            localStorage.setItem(key, JSON.stringify(notifications));
+        } catch {
+            // Storage unavailable (private mode / quota) - in-memory feed still works.
+        }
+    }, [notifications, userId, notifFeedOwnerId]);
+
+    // Owner guard: alerts are only ever rendered for a signed-in account that
+    // actually owns the in-memory feed - enforced here, not just by convention.
+    const visibleNotifications = userId && notifFeedOwnerId === userId ? notifications : [];
+
+    const handleAddNotification = (title, text, type = 'tracking', orderId = null, toastType = null) => {
         const newNotif = {
             id: 'notif-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
             title,
@@ -88,37 +150,24 @@ function StorefrontContent() {
             type,
             orderId
         };
-        setNotifications(prev => {
-            const updated = [newNotif, ...prev];
-            localStorage.setItem('nexus_notifications', JSON.stringify(updated));
-            return updated;
-        });
+        setNotifications(prev => [newNotif, ...prev]);
         showToast({
-            type: type === 'tracking' ? 'info' : 'success',
+            type: toastType || (type === 'tracking' ? 'info' : 'success'),
             title,
             text
         });
     };
 
     const handleMarkAllRead = () => {
-        setNotifications(prev => {
-            const updated = prev.map(n => ({ ...n, unread: false }));
-            localStorage.setItem('nexus_notifications', JSON.stringify(updated));
-            return updated;
-        });
+        setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
     };
 
     const handleMarkRead = (id) => {
-        setNotifications(prev => {
-            const updated = prev.map(n => n.id === id ? { ...n, unread: false } : n);
-            localStorage.setItem('nexus_notifications', JSON.stringify(updated));
-            return updated;
-        });
+        setNotifications(prev => prev.map(n => (n.id === id ? { ...n, unread: false } : n)));
     };
 
     const handleClearAllNotifications = () => {
         setNotifications([]);
-        localStorage.removeItem('nexus_notifications');
     };
 
     // Check unread support responses from admin (fast 8s polling + focus revalidation)
@@ -155,7 +204,7 @@ function StorefrontContent() {
 
     // Fast order status notification listener: notifies customer when admin marks order shipped
     useEffect(() => {
-        if (!user) return;
+        if (!userId) return;
         async function checkOrdersStatus() {
             try {
                 const orders = await orderService.getOrderHistory();
@@ -163,7 +212,7 @@ function StorefrontContent() {
                     orders.forEach(ord => {
                         const s = (ord.status || '').toLowerCase();
                         if (s === 'shipped') {
-                            const notifKey = `notif_shipped_${ord.id}`;
+                            const notifKey = shippedMarkerKey(userId, ord.id);
                             if (!localStorage.getItem(notifKey)) {
                                 localStorage.setItem(notifKey, 'true');
                                 handleAddNotification(
@@ -187,7 +236,7 @@ function StorefrontContent() {
             }
         }, 8000);
         return () => clearInterval(interval);
-    }, [user]);
+    }, [userId]);
 
     // Tracking Handler with clean interactive modal
     const handleTrackOrder = async (orderId) => {
@@ -224,22 +273,6 @@ function StorefrontContent() {
                     type: 'info',
                     title: `Order #${orderId}: ${active.status}`,
                     text: `Carrier: ${active.carrier || 'FedEx Express'} • Tracking: ${active.tracking_number || `FX-${orderId}`}`
-                });
-                return;
-            }
-
-            if (String(orderId) === '10245') {
-                setTrackedOrder({
-                    id: '10245',
-                    tracking_number: 'FX-10245',
-                    status: 'In Transit',
-                    carrier: 'FedEx Priority Express',
-                    estimated_delivery: 'Estimated 2 days',
-                    payment_method: 'Credit Card',
-                    total: 149.99,
-                    shipping_address: '450 VIP Commerce Way, New York, NY 10001',
-                    date: '2026-07-02',
-                    items: [{ name: 'Executive Ultralight Watch', quantity: 1, price: 149.99 }]
                 });
                 return;
             }
@@ -298,7 +331,7 @@ function StorefrontContent() {
                         text: 'You have been successfully signed out.'
                     });
                 }}
-                notifications={notifications}
+                notifications={visibleNotifications}
                 onMarkAllRead={handleMarkAllRead}
                 onMarkRead={handleMarkRead}
                 onOpenTracking={handleTrackOrder}
@@ -306,12 +339,21 @@ function StorefrontContent() {
                 products={allProducts}
                 onQuickView={(prod) => setQuickViewProduct(prod)}
                 onAddToCart={(prod) => {
-                    addToCart(prod, 1);
+                    const res = addToCart(prod, 1);
+                    if (res && !res.success) {
+                        showToast({
+                            type: 'remove',
+                            title: 'Stock Limit Reached',
+                            text: res.message || 'Cannot add more items to cart.'
+                        });
+                        return false;
+                    }
                     showToast({
                         type: 'success',
                         title: 'Added to Bag',
                         text: `${prod.name} added to your cart.`
                     });
+                    return true;
                 }}
             />
 
@@ -319,12 +361,21 @@ function StorefrontContent() {
             <div style={{ flex: 1 }}>
                 <AppRoutes
                     onAddToCart={(product, qty = 1) => {
-                        addToCart(product, qty);
+                        const res = addToCart(product, qty);
+                        if (res && !res.success) {
+                            showToast({
+                                type: 'remove',
+                                title: 'Stock Limit Reached',
+                                text: res.message || 'Cannot add more items to cart.'
+                            });
+                            return false;
+                        }
                         showToast({
                             type: 'success',
                             title: 'Added to Bag',
                             text: `${product.name} added to your cart.`
                         });
+                        return true;
                     }}
                     onQuickView={(prod) => setQuickViewProduct(prod)}
                     searchTerm={searchTerm}
@@ -371,11 +422,20 @@ function StorefrontContent() {
                     setCheckoutData(null);
                     clearCart();
                     setTrackedOrder(newOrder);
+                    // Use the real order id only. A hardcoded '10245' fallback used
+                    // to create an alert for a non-existent demo order, and its
+                    // "View Live Timeline" deep-link then opened a fabricated
+                    // tracking screen for that order.
+                    const confirmedId = newOrder.id || newOrder.order_id || null;
+                    const methodLabel = String(newOrder.payment_method || 'Card').toUpperCase();
                     handleAddNotification(
-                        `🎉 Order Confirmed (#${newOrder.id || '10245'})`,
-                        `Payment verified via ${newOrder.payment_method || 'Card'}. Live tracking is now active!`,
+                        confirmedId ? `🎉 Order Confirmed (#${confirmedId})` : '🎉 Order Confirmed',
+                        methodLabel === 'COD'
+                            ? 'Order placed - pay cash on delivery. Live tracking is now active!'
+                            : `Payment verified via ${methodLabel}. Live tracking is now active!`,
                         'tracking',
-                        newOrder.id || '10245'
+                        confirmedId,
+                        'success'
                     );
                 }}
                 onShowToast={showToast}
@@ -402,12 +462,21 @@ function StorefrontContent() {
                 allProducts={allProducts}
                 onClose={() => setQuickViewProduct(null)}
                 onAddToCart={(prod, qty = 1) => {
-                    addToCart(prod, qty);
+                    const res = addToCart(prod, qty);
+                    if (res && !res.success) {
+                        showToast({
+                            type: 'remove',
+                            title: 'Stock Limit Reached',
+                            text: res.message || 'Cannot add more items to cart.'
+                        });
+                        return false;
+                    }
                     showToast({
                         type: 'success',
                         title: 'Added to Bag',
                         text: `${prod.name} added to cart.`
                     });
+                    return true;
                 }}
                 onQuickView={(prod) => setQuickViewProduct(prod)}
             />

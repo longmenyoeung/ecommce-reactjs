@@ -302,7 +302,14 @@ function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView 
             {inStock && (
               <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Quantity:</span>
+                  <div>
+                    <span style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-primary)', display: 'block' }}>Quantity:</span>
+                    {product.stock !== undefined && (
+                      <span style={{ fontSize: '0.75rem', color: quantity >= product.stock ? '#ef4444' : 'var(--text-muted)', fontWeight: quantity >= product.stock ? '600' : 'normal' }}>
+                        {quantity >= product.stock ? `Max limit (${product.stock} available)` : `${product.stock} available`}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)' }}>
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -312,8 +319,24 @@ function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView 
                     </button>
                     <span style={{ width: '30px', textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }}>{quantity}</span>
                     <button
-                      onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+                      onClick={() => {
+                        const maxStock = (product.stock !== undefined && product.stock !== null) ? Number(product.stock) : 999;
+                        if (quantity < maxStock) {
+                          setQuantity(quantity + 1);
+                        }
+                      }}
+                      style={{ 
+                        width: '32px', 
+                        height: '32px', 
+                        borderRadius: 'var(--radius-full)', 
+                        backgroundColor: 'var(--bg-secondary)', 
+                        color: 'var(--text-primary)', 
+                        fontWeight: 'bold', 
+                        border: 'none', 
+                        cursor: quantity >= (product.stock ?? 999) ? 'not-allowed' : 'pointer',
+                        opacity: quantity >= (product.stock ?? 999) ? 0.4 : 1
+                      }}
+                      title={quantity >= (product.stock ?? 999) ? `Stock limit reached (${product.stock})` : "Increase quantity"}
                     >
                       +
                     </button>
@@ -322,8 +345,10 @@ function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView 
 
                 <button
                   onClick={() => {
-                    onAddToCart(product, quantity);
-                    onClose();
+                    const success = onAddToCart(product, quantity);
+                    if (success !== false) {
+                      onClose();
+                    }
                   }}
                   className="btn-primary"
                   style={{ width: '100%', padding: '14px', fontSize: '1.05rem', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px' }}

@@ -19,12 +19,6 @@ export function TrackOrderModal({ isOpen, onClose, onTrack }) {
     onClose();
   };
 
-  const handleQuickDemo = (demoId) => {
-    onTrack(demoId);
-    setOrderId('');
-    onClose();
-  };
-
   return (
     <div
       style={{
@@ -114,7 +108,7 @@ export function TrackOrderModal({ isOpen, onClose, onTrack }) {
               autoFocus
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
-              placeholder="e.g. 10245 or ORD-10245"
+              placeholder="e.g. 29 or FX-000029"
               style={{
                 flex: 1,
                 background: 'none',
@@ -142,38 +136,6 @@ export function TrackOrderModal({ isOpen, onClose, onTrack }) {
           </button>
         </form>
 
-        {/* Quick sample chips */}
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-            Quick demo tracking:
-          </span>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => handleQuickDemo('10245')}
-              className="badge"
-              style={{
-                cursor: 'pointer',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              #10245 (Express In-Transit)
-            </button>
-            <button
-              onClick={() => handleQuickDemo('10248')}
-              className="badge"
-              style={{
-                cursor: 'pointer',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              #10248 (Processing)
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

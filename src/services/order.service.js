@@ -1,6 +1,23 @@
 import { apiRequest } from '../config/axios';
 
 /**
+ * Order cache key. The local cache is namespaced by user id so a second
+ * account signing in on the same browser can never read the previous
+ * account's cached order history. Signed-out visitors keep the legacy key
+ * (guest/demo orders only - no authenticated data).
+ */
+const ordersCacheKey = () => {
+  try {
+    const stored = localStorage.getItem('auth_user');
+    const user = stored ? JSON.parse(stored) : null;
+    if (user && user.id) return `customer_orders_${user.id}`;
+  } catch {
+    // Corrupt or unavailable storage - fall through to the guest bucket.
+  }
+  return 'customer_orders';
+};
+
+/**
  * Order & Checkout Service layer mapping exact protected order endpoints
  */
 export const orderService = {
@@ -67,7 +84,15 @@ export const orderService = {
       }
     } catch (e) {
       console.warn("API checkout warning:", e.message);
-      if (e.message && e.message.includes('required')) {
+      if (e.message && (
+        e.message.toLowerCase().includes('stock') ||
+        e.message.toLowerCase().includes('insufficient') ||
+        e.message.toLowerCase().includes('quantity') ||
+        e.message.toLowerCase().includes('available') ||
+        e.message.toLowerCase().includes('required') ||
+        e.message.toLowerCase().includes('coupon') ||
+        e.message.toLowerCase().includes('empty')
+      )) {
         throw e;
       }
     }
@@ -82,7 +107,7 @@ export const orderService = {
     };
     const orders = orderService.getLocalOrders();
     orders.unshift(newOrder);
-    localStorage.setItem('customer_orders', JSON.stringify(orders));
+    localStorage.setItem(ordersCacheKey(), JSON.stringify(orders));
     return newOrder;
   },
 
@@ -102,7 +127,7 @@ export const orderService = {
 
         if (list.length > 0) {
           const orders = orderService.normalizeOrders(list);
-          localStorage.setItem('customer_orders', JSON.stringify(orders));
+          localStorage.setItem(ordersCacheKey(), JSON.stringify(orders));
           return orders;
         }
       }
@@ -182,7 +207,7 @@ export const orderService = {
       console.warn("API cancel order warning:", e.message);
     }
     const orders = ordersList.map(o => String(o.id) === String(id) ? { ...o, status: 'Cancelled' } : o);
-    localStorage.setItem('customer_orders', JSON.stringify(orders));
+    localStorage.setItem(ordersCacheKey(), JSON.stringify(orders));
     return orders.find(o => String(o.id) === String(id));
   },
 
@@ -203,7 +228,7 @@ export const orderService = {
 
   getLocalOrders: () => {
     try {
-      const stored = localStorage.getItem('customer_orders');
+      const stored = localStorage.getItem(ordersCacheKey());
       return stored ? JSON.parse(stored) : [
         { id: '10245', date: '2026-07-02', status: 'Delivered', total: 249.50, items: [{ name: 'Executive Ultralight Watch', quantity: 1 }] },
         { id: '10190', date: '2026-06-18', status: 'Delivered', total: 129.00, items: [{ name: 'AeroFlex Titanium Sunglasses', quantity: 1 }] }

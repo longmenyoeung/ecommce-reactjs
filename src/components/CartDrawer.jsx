@@ -255,6 +255,11 @@ function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem
                         </span>
                       )}
                     </div>
+                    {item.stock !== undefined && item.stock !== null && (
+                      <div style={{ fontSize: '0.72rem', marginTop: '2px', color: item.quantity >= item.stock ? '#ef4444' : 'var(--text-muted)', fontWeight: item.quantity >= item.stock ? '600' : 'normal' }}>
+                        {item.quantity >= item.stock ? `Max stock in bag (${item.stock} avail)` : `In stock: ${item.stock}`}
+                      </div>
+                    )}
                   </div>
 
                   {/* Quantity Controls */}
@@ -270,9 +275,31 @@ function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                      style={{ width: '26px', height: '26px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Increase quantity"
+                      onClick={() => {
+                        const res = onUpdateQuantity(item.id, item.quantity + 1);
+                        if (res && !res.success) {
+                          onShowToast?.({
+                            type: 'remove',
+                            title: 'Stock Limit Reached',
+                            text: res.message || `Only ${item.stock} item(s) available in stock.`
+                          });
+                        }
+                      }}
+                      style={{ 
+                        width: '26px', 
+                        height: '26px', 
+                        borderRadius: 'var(--radius-full)', 
+                        backgroundColor: 'var(--bg-secondary)', 
+                        color: 'var(--text-primary)', 
+                        fontSize: '0.9rem', 
+                        fontWeight: 'bold', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        opacity: (item.stock !== undefined && item.quantity >= item.stock) ? 0.4 : 1,
+                        cursor: (item.stock !== undefined && item.quantity >= item.stock) ? 'not-allowed' : 'pointer'
+                      }}
+                      title={item.stock !== undefined && item.quantity >= item.stock ? `Stock limit reached (${item.stock})` : "Increase quantity"}
                     >
                       +
                     </button>

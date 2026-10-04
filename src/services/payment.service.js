@@ -56,6 +56,22 @@ export const paymentService = {
       console.warn("API refund request warning:", e.message);
     }
     return { success: true, message: `Refund requested for transaction ${paymentId}` };
+  },
+
+  // POST /api/payments/anajak/create — initialize AnajakPay ABA Pay / KHQR session
+  createAnajakPayment: async (orderId, successUrl = null) => {
+    return await apiRequest('/payments/anajak/create', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: orderId, success_url: successUrl })
+    });
+  },
+
+  // POST /api/payments/anajak/verify — confirm payment after customer returns from AnajakPay
+  verifyAnajakPayment: async (orderId, transactionId = null) => {
+    return await apiRequest('/payments/anajak/verify', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: orderId, transaction_id: transactionId })
+    });
   }
 };
 

@@ -35,11 +35,15 @@ export function TrackingStatusModal({ isOpen, onClose, order, onShowToast, onCan
           fresh = await orderService.getOrderById(cleanId);
         }
 
-        // If cleanId was a temporary simulated ID (e.g. 23277) or not yet matched:
+        // If the requested order cannot be resolved, only accept a fallback row
+        // that is the SAME order. Taking history[0] blindly swapped in an
+        // unrelated (or demo) order, so a notification deep-link for an unknown
+        // order showed a different order's status - e.g. a freshly placed order
+        // rendering as "Delivered • Cannot Cancel".
         if (!fresh) {
           const history = await orderService.getOrderHistory();
           if (Array.isArray(history) && history.length > 0) {
-            fresh = history[0]; // Upgrade to latest real database order (e.g. Order #28)
+            fresh = history.find((o) => String(o.id || o.order_id) === String(cleanId)) || null;
           }
         }
 
@@ -66,8 +70,11 @@ export function TrackingStatusModal({ isOpen, onClose, order, onShowToast, onCan
 
   if (!isOpen || !currentOrder) return null;
 
-  const orderId = currentOrder.id || currentOrder.order_id || '10245';
-  const trackingNumber = currentOrder.tracking_number || `FX-${String(orderId).padStart(6, '0')}`;
+  // Never invent an order number: this id is also used to cancel the order, so a
+  // hardcoded '10245' fallback could display - and cancel - a demo order.
+  const orderId = currentOrder.id || currentOrder.order_id || null;
+  const orderRef = orderId ?? 'Pending';
+  const trackingNumber = currentOrder.tracking_number || (orderId ? `FX-${String(orderId).padStart(6, '0')}` : 'Unassigned');
   const statusLower = (currentOrder.status_raw || currentOrder.status || 'Processing').toLowerCase();
   
   const cannotCancel = ['completed', 'delivered', 'shipped', 'in transit'].includes(statusLower);
@@ -179,7 +186,7 @@ export function TrackingStatusModal({ isOpen, onClose, order, onShowToast, onCan
                 {isCancelled ? 'Order Has Been Cancelled' : 'Order Confirmed & Tracking Active'}
               </span>
               <h2 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
-                Order #{orderId}
+                Order #{orderRef}
               </h2>
             </div>
           </div>
@@ -331,6 +338,7 @@ export function TrackingStatusModal({ isOpen, onClose, order, onShowToast, onCan
               <button
                 type="button"
                 onClick={async () => {
+                  if (!orderId) return;
                   if (!window.confirm("Are you sure you want to cancel this order?")) return;
                   const updated = await orderService.cancelOrder(orderId);
                   if (updated || true) {
@@ -340,7 +348,7 @@ export function TrackingStatusModal({ isOpen, onClose, order, onShowToast, onCan
                       onShowToast({
                         type: 'remove',
                         title: 'Order Cancelled',
-                        text: `Order #${orderId} has been successfully cancelled.`
+                        text: `Order #${orderRef} has been successfully cancelled.`
                       });
                     }
                   }

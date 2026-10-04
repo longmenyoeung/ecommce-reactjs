@@ -54,7 +54,7 @@ export function OrderTrackingPage() {
           location: 'Regional Distribution Center',
           payment_method: order.payment_method || 'CARD',
           total: order.total || 0,
-          date: order.date || date('Y-m-d'),
+          date: order.date || (order.created_at ? String(order.created_at).substring(0, 10) : new Date().toISOString().substring(0, 10)),
           checkpoints: order.checkpoints || [],
           items: order.items || []
         });
@@ -162,7 +162,7 @@ export function OrderTrackingPage() {
           Track Your Delivery
         </h1>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: '0.95rem' }}>
-          Enter your Order ID (e.g. 10245 or ORD-10245) to monitor live shipping milestones.
+          Enter your Order ID or tracking number (e.g. 29 or FX-000029) to monitor live shipping milestones.
         </p>
       </div>
 
