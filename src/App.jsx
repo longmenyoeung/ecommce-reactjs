@@ -17,7 +17,6 @@ import { DEFAULT_CATEGORY_LIST } from './utils/categoryHelper';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
-import { shipmentService } from './services/shipment.service';
 import { orderService } from './services/order.service';
 import { supportService } from './services/support.service';
 import { fetchProducts } from './services/api';
@@ -75,6 +74,7 @@ function StorefrontContent() {
     const { cartItems, isCartOpen, setIsCartOpen, addToCart, updateQuantity, removeFromCart, clearCart, totalCartCount } = useCart();
     const { user, login, logout } = useAuth();
     const { showToast } = useToast();
+    const navigate = useNavigate();
 
     // Modals & Navigation state
     const [quickViewProduct, setQuickViewProduct] = useState(null);
@@ -238,57 +238,13 @@ function StorefrontContent() {
         return () => clearInterval(interval);
     }, [userId]);
 
-    // Tracking Handler with clean interactive modal
-    const handleTrackOrder = async (orderId) => {
+    // Tracking Handler: navigate directly to dedicated live tracking page
+    const handleTrackOrder = (orderId) => {
         if (!orderId) {
-            setIsTrackModalOpen(true);
+            navigate('/track');
             return;
         }
-
-        try {
-            // Fetch live tracking from backend public track endpoint and order service
-            const trackingInfo = await shipmentService.trackShipment(orderId).catch(() => null);
-            const foundOrder = await orderService.getOrderById(orderId).catch(() => null);
-
-            const active = trackingInfo || foundOrder;
-
-            if (active && (active.id || active.order_id)) {
-                setTrackedOrder({
-                    id: active.id || active.order_id,
-                    order_id: active.order_id || active.id,
-                    tracking_number: active.tracking_number || `FX-${active.id || active.order_id}`,
-                    status: active.status || 'Processing',
-                    status_raw: active.status_raw || (active.status || 'processing').toLowerCase(),
-                    carrier: active.carrier || 'FedEx Priority Express',
-                    estimated_delivery: active.estimated_delivery || 'Estimated in 2 business days',
-                    payment_method: active.payment_method || 'Credit Card',
-                    total: Number(active.total || 0),
-                    shipping_address: active.shipping_address || 'Customer Delivery Address',
-                    date: active.date || (active.created_at ? String(active.created_at).substring(0, 10) : 'Recent'),
-                    checkpoints: active.checkpoints || [],
-                    items: active.items || []
-                });
-
-                showToast({
-                    type: 'info',
-                    title: `Order #${orderId}: ${active.status}`,
-                    text: `Carrier: ${active.carrier || 'FedEx Express'} • Tracking: ${active.tracking_number || `FX-${orderId}`}`
-                });
-                return;
-            }
-
-            showToast({
-                type: 'error',
-                title: 'Tracking Not Found',
-                text: `Could not locate order #${orderId}. Please check the number.`
-            });
-        } catch {
-            showToast({
-                type: 'error',
-                title: 'Tracking Error',
-                text: `Could not load tracking for order #${orderId}`
-            });
-        }
+        navigate(`/track/${encodeURIComponent(orderId)}`);
     };
 
     const handleOpenCatalog = () => {
@@ -304,7 +260,7 @@ function StorefrontContent() {
                 onOpenCatalog={handleOpenCatalog}
                 onOpenAbout={() => setActiveModal('about')}
                 onOpenContact={() => setActiveModal('contact')}
-                onTrackOrder={() => setIsTrackModalOpen(true)}
+                onTrackOrder={() => navigate('/track')}
             />
 
             {/* Navigation Bar */}
@@ -534,7 +490,7 @@ function StorefrontContent() {
                 onOpenSupport={() => { setIsCartOpen(false); setActiveModal('support'); }}
                 supportUnreadCount={supportUnreadCount}
                 onOpenCatalog={() => { setIsCartOpen(false); handleOpenCatalog(); }}
-                onTrackOrder={() => { setIsCartOpen(false); setIsTrackModalOpen(true); }}
+                onTrackOrder={() => { setIsCartOpen(false); navigate('/track'); }}
                 activeCategory={activeCategory}
                 setActiveCategory={setActiveCategory}
                 user={user}

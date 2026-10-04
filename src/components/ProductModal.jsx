@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getImageUrl, getFallbackImageUrl } from '../utils/imageHelper';
 import { getCategoryName } from '../utils/categoryHelper';
-import { XMarkIcon, ShoppingCartIcon, CheckCircleIcon, ExclamationTriangleIcon, PhotoIcon, SparklesIcon, TagIcon, ShieldCheckIcon, TruckIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ShoppingCartIcon, CheckCircleIcon, ExclamationTriangleIcon, PhotoIcon, SparklesIcon, ShieldCheckIcon, TruckIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView }) {
-  if (!product) return null;
-
   const [quantity, setQuantity] = useState(1);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
@@ -21,12 +19,13 @@ function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView 
     }
   }, [product]);
 
-  const primaryImgUrl = getImageUrl(product.image);
-  const fallbackImgUrl = getFallbackImageUrl(product.image);
-  const categoryName = getCategoryName(product);
+  const primaryImgUrl = product ? getImageUrl(product.image) : '';
+  const fallbackImgUrl = product ? getFallbackImageUrl(product.image) : '';
+  const categoryName = product ? getCategoryName(product) : '';
 
   // Build a rich multi-image gallery with thumbnails combining main image and gallery images
   const galleryImages = useMemo(() => {
+    if (!product) return [];
     const list = [];
     if (primaryImgUrl) {
       list.push(primaryImgUrl);
@@ -64,7 +63,7 @@ function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView 
 
   // Compute more related products from the same category
   const relatedProducts = useMemo(() => {
-    if (!allProducts || !Array.isArray(allProducts)) return [];
+    if (!product || !allProducts || !Array.isArray(allProducts)) return [];
     const sameCat = allProducts.filter(p => p.id !== product.id && getCategoryName(p) === categoryName);
     if (sameCat.length >= 3) return sameCat.slice(0, 4);
     const others = allProducts.filter(p => p.id !== product.id && !sameCat.some(s => s.id === p.id));
@@ -79,6 +78,8 @@ function ProductModal({ product, allProducts, onClose, onAddToCart, onQuickView 
       setImgError(true);
     }
   };
+
+  if (!product) return null;
 
   const formattedPrice = parseFloat(product.price || 0).toFixed(2);
   const totalPrice = (parseFloat(product.price || 0) * quantity).toFixed(2);

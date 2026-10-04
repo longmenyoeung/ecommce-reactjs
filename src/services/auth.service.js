@@ -6,32 +6,24 @@ import { loginUser, registerUser, loginWithGoogle, sendResetOtp, resetPasswordWi
  */
 export const authService = {
   login: async (email, password) => {
-    try {
-      // Call Laravel Backend /api/auth/login
-      const data = await loginUser(email, password);
-      const token = data.token || data.access_token || data.data?.token || data.data?.access_token;
-      if (data && (data.user || data.data?.user)) {
-        localStorage.setItem('auth_user', JSON.stringify(data.user || data.data?.user));
-      }
-      if (token) localStorage.setItem('auth_token', token);
-      return data;
-    } catch (error) {
-      throw error;
+    // Call Laravel Backend /api/auth/login
+    const data = await loginUser(email, password);
+    const token = data.token || data.access_token || data.data?.token || data.data?.access_token;
+    if (data && (data.user || data.data?.user)) {
+      localStorage.setItem('auth_user', JSON.stringify(data.user || data.data?.user));
     }
+    if (token) localStorage.setItem('auth_token', token);
+    return data;
   },
 
   loginWithGoogle: async (payload) => {
-    try {
-      const data = await loginWithGoogle(payload);
-      const token = data.token || data.access_token;
-      if (data && data.user) {
-        localStorage.setItem('auth_user', JSON.stringify(data.user));
-      }
-      if (token) localStorage.setItem('auth_token', token);
-      return data;
-    } catch (error) {
-      throw error;
+    const data = await loginWithGoogle(payload);
+    const token = data.token || data.access_token;
+    if (data && data.user) {
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
     }
+    if (token) localStorage.setItem('auth_token', token);
+    return data;
   },
 
   sendResetOtp: async (email) => {
@@ -43,18 +35,14 @@ export const authService = {
   },
 
   register: async (name, email, password) => {
-    try {
-      // Call Laravel Backend /api/auth/register
-      const data = await registerUser(name, email, password);
-      const token = data.token || data.access_token || data.data?.token || data.data?.access_token;
-      if (data && (data.user || data.data?.user)) {
-        localStorage.setItem('auth_user', JSON.stringify(data.user || data.data?.user));
-      }
-      if (token) localStorage.setItem('auth_token', token);
-      return data;
-    } catch (error) {
-      throw error;
+    // Call Laravel Backend /api/auth/register
+    const data = await registerUser(name, email, password);
+    const token = data.token || data.access_token || data.data?.token || data.data?.access_token;
+    if (data && (data.user || data.data?.user)) {
+      localStorage.setItem('auth_user', JSON.stringify(data.user || data.data?.user));
     }
+    if (token) localStorage.setItem('auth_token', token);
+    return data;
   },
 
   logout: async () => {

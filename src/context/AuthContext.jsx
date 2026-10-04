@@ -45,10 +45,25 @@ export function AuthProvider({ children }) {
   // Sync session on mount
   useEffect(() => {
     if (token && !user) {
-      authService.getUserProfile().then((profile) => {
-        if (profile) setUser(profile);
-      });
+      authService.getUserProfile()
+        .then((profile) => {
+          if (profile) setUser(profile);
+        })
+        .catch(() => {
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem('auth_user');
+          localStorage.removeItem('auth_token');
+        });
     }
+
+    const handleSessionExpired = () => {
+      setUser(null);
+      setToken(null);
+    };
+
+    window.addEventListener('auth:expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:expired', handleSessionExpired);
   }, [token, user]);
 
   return (

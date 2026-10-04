@@ -86,14 +86,16 @@ export const userService = {
           body: JSON.stringify({ product_id: product.id })
         }).catch(() => {});
       }
-    } finally {
-      const items = userService.getLocalWishlist();
-      if (!items.some(i => String(i.id) === String(product.id))) {
-        items.push(product);
-        localStorage.setItem('wishlist_items', JSON.stringify(items));
-      }
-      return items;
+    } catch (err) {
+      console.warn("Wishlist sync error:", err);
     }
+
+    const items = userService.getLocalWishlist();
+    if (!items.some(i => String(i.id) === String(product.id))) {
+      items.push(product);
+      localStorage.setItem('wishlist_items', JSON.stringify(items));
+    }
+    return items;
   },
 
   // DELETE /api/wishlist/{product_id}
@@ -102,11 +104,13 @@ export const userService = {
       if (localStorage.getItem('auth_token')) {
         await apiRequest(`/wishlist/${productId}`, { method: 'DELETE' }).catch(() => {});
       }
-    } finally {
-      const items = userService.getLocalWishlist().filter(i => String(i.id) !== String(productId));
-      localStorage.setItem('wishlist_items', JSON.stringify(items));
-      return items;
+    } catch (err) {
+      console.warn("Wishlist remove sync error:", err);
     }
+
+    const items = userService.getLocalWishlist().filter(i => String(i.id) !== String(productId));
+    localStorage.setItem('wishlist_items', JSON.stringify(items));
+    return items;
   },
 
   // GET /api/addresses

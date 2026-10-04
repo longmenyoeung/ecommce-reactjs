@@ -1,10 +1,12 @@
+import { Link } from 'react-router-dom';
 import { 
   HomeIcon, 
   UserIcon, 
   SparklesIcon, 
   ChatBubbleLeftRightIcon, 
   ShoppingCartIcon,
-  LifebuoyIcon
+  LifebuoyIcon,
+  TruckIcon
 } from '@heroicons/react/24/outline';
 
 function MobileBottomNav({ cartCount, onOpenCart, onOpenAbout, onOpenContact, onOpenSupport, supportUnreadCount = 0, onTrackOrder, activeCategory, setActiveCategory, onOpenCatalog, user, onOpenAuth }) {
@@ -79,14 +81,15 @@ function MobileBottomNav({ cartCount, onOpenCart, onOpenAbout, onOpenContact, on
         <span>Support</span>
       </button>
 
-      {/* Contact */}
-      <button
-        onClick={onOpenContact}
+      {/* Track Delivery */}
+      <Link
+        to="/track"
         className="mobile-bottom-item"
+        style={{ textDecoration: 'none' }}
       >
-        <ChatBubbleLeftRightIcon style={{ width: '22px', height: '22px' }} />
-        <span>Contact</span>
-      </button>
+        <TruckIcon style={{ width: '22px', height: '22px' }} />
+        <span>Track</span>
+      </Link>
 
       {/* Bag */}
       <button

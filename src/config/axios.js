@@ -23,12 +23,32 @@ export async function apiRequest(endpoint, options = {}) {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      if (response.status === 401) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        window.dispatchEvent(new CustomEvent('auth:expired', { detail: { message: data.message || 'Session expired. Please sign in again.' } }));
+      }
+
+      let errorMsg = data.message;
+      if (data.errors && typeof data.errors === 'object') {
+        const firstErrorKey = Object.keys(data.errors)[0];
+        if (firstErrorKey && Array.isArray(data.errors[firstErrorKey])) {
+          errorMsg = data.errors[firstErrorKey][0];
+        }
+      }
+
+      const error = new Error(errorMsg || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      error.data = data;
+      error.errors = data.errors || null;
+      throw error;
     }
 
     return data;
   } catch (error) {
-    console.error(`[API Error] ${endpoint}:`, error);
+    if (error.status !== 401) {
+      console.error(`[API Error] ${endpoint}:`, error.message || error);
+    }
     throw error;
   }
 }

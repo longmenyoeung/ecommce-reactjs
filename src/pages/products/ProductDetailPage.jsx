@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchProductById, fetchProducts } from '../../services/api';
+import { fetchProductById } from '../../services/api';
 import { getImageUrl, getFallbackImageUrl } from '../../utils/imageHelper';
 import { getCategoryName } from '../../utils/categoryHelper';
 import { useCart } from '../../context/CartContext';
@@ -20,7 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
-import { ENV } from '../../config/env';
+import { apiRequest } from '../../config/axios';
 
 export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
   const { id } = useParams();
@@ -48,8 +48,7 @@ export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
   const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
-    fetch(`${ENV.API_BASE_URL}/products/${id}/reviews`)
-      .then((res) => res.json())
+    apiRequest(`/products/${id}/reviews`)
       .then((data) => {
         if (data && data.success) {
           setReviewsData(data);
@@ -63,24 +62,21 @@ export function ProductDetailPage({ allProducts = [], onOpenCheckout }) {
     if (!reviewForm.comment.trim()) return;
     setIsSubmittingReview(true);
     try {
-      const res = await fetch(`${ENV.API_BASE_URL}/products/${id}/reviews`, {
+      const resData = await apiRequest(`/products/${id}/reviews`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(reviewForm)
       });
-      const resData = await res.json();
-      if (res.ok && resData.success) {
+      if (resData && resData.success) {
         showToast({ type: 'success', title: 'Review Submitted', text: 'Thank you for your rating!' });
         setReviewForm({ rating: 5, author_name: '', comment: '' });
         setShowReviewForm(false);
-        const refetch = await fetch(`${ENV.API_BASE_URL}/products/${id}/reviews`);
-        const refetchData = await refetch.json();
-        if (refetchData.success) setReviewsData(refetchData);
+        const refetchData = await apiRequest(`/products/${id}/reviews`).catch(() => null);
+        if (refetchData && refetchData.success) setReviewsData(refetchData);
       } else {
-        showToast({ type: 'error', title: 'Submission Error', text: resData.message || 'Could not submit review' });
+        showToast({ type: 'error', title: 'Submission Error', text: resData?.message || 'Could not submit review' });
       }
     } catch (err) {
-      showToast({ type: 'error', title: 'Network Error', text: err.message });
+      showToast({ type: 'error', title: 'Submission Error', text: err.message || 'Could not submit review' });
     } finally {
       setIsSubmittingReview(false);
     }

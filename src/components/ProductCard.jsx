@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { getImageUrl, getFallbackImageUrl } from '../utils/imageHelper';
 import { getCategoryName } from '../utils/categoryHelper';
@@ -16,12 +16,15 @@ function ProductCard({ product, onAddToCart, onQuickView }) {
   const primaryImgUrl = getImageUrl(product.image);
   const fallbackImgUrl = getFallbackImageUrl(product.image);
 
-  // Parse gallery images (handles arrays and JSON strings from Laravel)
-  let parsedGallery = product.images;
-  if (typeof parsedGallery === 'string') {
-    try { parsedGallery = JSON.parse(parsedGallery); } catch (e) { parsedGallery = []; }
-  }
-  const galleryList = Array.isArray(parsedGallery) ? parsedGallery.map(img => getImageUrl(img)).filter(Boolean) : [];
+  // Parse gallery images (memoized to prevent JSON.parse on every re-render)
+  const galleryList = useMemo(() => {
+    let parsedGallery = product.images;
+    if (typeof parsedGallery === 'string') {
+      try { parsedGallery = JSON.parse(parsedGallery); } catch { parsedGallery = []; }
+    }
+    return Array.isArray(parsedGallery) ? parsedGallery.map(img => getImageUrl(img)).filter(Boolean) : [];
+  }, [product.images]);
+
   const hoverImgUrl = galleryList.length > 0 ? galleryList[0] : null;
 
   const handleImageError = (e) => {
@@ -52,7 +55,16 @@ function ProductCard({ product, onAddToCart, onQuickView }) {
       {/* Product Image Container */}
       <div
         className="product-card-img"
-        onClick={() => onQuickView(product)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Quick view ${product.name}`}
+        onClick={() => onQuickView && onQuickView(product)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onQuickView && onQuickView(product);
+          }
+        }}
       >
         {!imgError && (primaryImgUrl || hoverImgUrl) ? (
           <img

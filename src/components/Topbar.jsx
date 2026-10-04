@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { TruckIcon, ShieldCheckIcon, PhoneIcon, MapPinIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 function Topbar({ onTrackOrder, onOpenContact }) {
@@ -45,9 +46,9 @@ function Topbar({ onTrackOrder, onOpenContact }) {
         {/* Right Support & Order Tracking */}
         {/* Right Support & Order Tracking */}
         <div className="topbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px', fontWeight: '600', fontSize: '0.78rem', flexWrap: 'wrap' }}>
-          <button
+          <Link
+            to="/track"
             onClick={onTrackOrder}
-            className="desktop-only-btn"
             style={{
               color: '#ffffff',
               display: 'inline-flex',
@@ -58,7 +59,8 @@ function Topbar({ onTrackOrder, onOpenContact }) {
               backgroundColor: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
               transition: 'all 0.2s',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              textDecoration: 'none'
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.backgroundColor = 'var(--color-accent)';
@@ -71,7 +73,7 @@ function Topbar({ onTrackOrder, onOpenContact }) {
           >
             <MapPinIcon style={{ width: '14px', height: '14px', color: 'var(--color-accent)' }} />
             <span>Track Your Order</span>
-          </button>
+          </Link>
 
           <a
             href="tel:+1800636428"

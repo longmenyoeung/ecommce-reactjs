@@ -7,8 +7,6 @@ import {
   MagnifyingGlassIcon,
   TruckIcon,
   CheckCircleIcon,
-  ClockIcon,
-  MapPinIcon,
   ArrowLeftIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';

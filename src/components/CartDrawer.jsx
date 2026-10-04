@@ -7,10 +7,8 @@ import {
   ArrowRightIcon, 
   XMarkIcon, 
   PhotoIcon,
-  SparklesIcon,
   TicketIcon
 } from '@heroicons/react/24/outline';
-import { orderService } from '../services/order.service';
 import { userService } from '../services/user.service';
 
 function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem, onClearCart, user, onOpenAuth, onShowToast, onOpenCheckout }) {
@@ -56,6 +54,7 @@ function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem
       }
       return;
     }
+    setIsSubmittingOrder(true);
     if (onOpenCheckout) {
       onOpenCheckout({
         items: cartItems,
@@ -63,6 +62,7 @@ function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem
         couponCode
       });
     }
+    setTimeout(() => setIsSubmittingOrder(false), 300);
   };
 
   return (

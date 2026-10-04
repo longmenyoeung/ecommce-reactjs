@@ -7,17 +7,13 @@ import {
   PaperAirplaneIcon,
   PaperClipIcon,
   StarIcon,
-  CheckCircleIcon,
-  ClockIcon,
   QuestionMarkCircleIcon,
   PlusCircleIcon,
-  ExclamationTriangleIcon,
   ArrowPathIcon,
   PhotoIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  ShieldCheckIcon,
-  SparklesIcon
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -52,7 +48,6 @@ function SupportModal({ isOpen, onClose, user, onOpenAuth, onShowToast }) {
 
   // Active conversation thread state
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const [threadLoading, setThreadLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replyAttachment, setReplyAttachment] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);

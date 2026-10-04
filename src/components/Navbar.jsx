@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
-  BoltIcon, MagnifyingGlassIcon, XMarkIcon, ShoppingCartIcon, SparklesIcon, 
-  CubeIcon, UserIcon, ArrowRightOnRectangleIcon, LifebuoyIcon, ArrowRightIcon,
-  TagIcon, EyeIcon, PhotoIcon, CheckBadgeIcon
+  BoltIcon, MagnifyingGlassIcon, XMarkIcon, ShoppingCartIcon, 
+  CubeIcon, UserIcon, LifebuoyIcon, TruckIcon
 } from '@heroicons/react/24/outline';
 import NotificationBell from './NotificationsCenter';
 import { getImageUrl } from '../utils/imageHelper';
@@ -15,6 +15,7 @@ function Navbar({
   onOpenCatalog, user, onOpenAuth, onLogout, notifications, onMarkAllRead, onMarkRead, 
   onOpenTracking, onClearAllNotifications, products = [], onQuickView, onAddToCart 
 }) {
+  const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [localProducts, setLocalProducts] = useState(products || []);
   const searchWrapperRef = useRef(null);
@@ -49,7 +50,9 @@ function Navbar({
   }, []);
 
   // Filter matching products
-  const productList = localProducts && localProducts.length > 0 ? localProducts : (products || []);
+  const productList = useMemo(() => {
+    return localProducts && localProducts.length > 0 ? localProducts : (products || []);
+  }, [localProducts, products]);
   
   const searchResults = useMemo(() => {
     if (!searchTerm || !searchTerm.trim()) return [];
@@ -241,6 +244,37 @@ function Navbar({
           >
             Contact
           </button>
+
+          <Link
+            to="/track"
+            className="desktop-only-btn"
+            style={{
+              padding: '9px 16px',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: location.pathname.startsWith('/track') ? 'var(--bg-secondary)' : 'transparent',
+              border: location.pathname.startsWith('/track') ? '1px solid var(--border-color)' : '1px solid transparent',
+              color: location.pathname.startsWith('/track') ? 'var(--accent-primary)' : 'var(--text-primary)',
+              fontWeight: '600',
+              fontSize: '0.88rem',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              textDecoration: 'none'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+            }}
+            onMouseOut={(e) => {
+              if (!location.pathname.startsWith('/track')) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+            }}
+          >
+            <TruckIcon style={{ width: '17px', height: '17px', color: 'var(--accent-primary)' }} />
+            <span>Track Order</span>
+          </Link>
 
           <button
             onClick={onOpenSupport}

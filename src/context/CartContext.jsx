@@ -49,39 +49,35 @@ export function CartProvider({ children }) {
       };
     }
 
-    let checkResult = { success: true };
+    const existing = cartItems.find((item) => String(item.id) === String(product.id));
+    const currentQty = existing ? existing.quantity : 0;
+    const newTotal = currentQty + requestedQty;
+
+    if (newTotal > availableStock) {
+      const canAdd = Math.max(0, availableStock - currentQty);
+      let msg = '';
+      if (currentQty === 0) {
+        msg = `Only ${availableStock} item(s) available in stock. You requested ${requestedQty}.`;
+      } else if (canAdd > 0) {
+        msg = `Only ${availableStock} in stock! You already have ${currentQty} in cart (can add at most ${canAdd} more).`;
+      } else {
+        msg = `Only ${availableStock} item(s) available in stock. You already have all ${availableStock} in your cart.`;
+      }
+      return {
+        success: false,
+        stock: availableStock,
+        currentQty,
+        canAdd,
+        message: msg
+      };
+    }
 
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      const currentQty = existing ? existing.quantity : 0;
-      const newTotal = currentQty + requestedQty;
-
-      if (newTotal > availableStock) {
-        const canAdd = Math.max(0, availableStock - currentQty);
-        let msg = '';
-        if (currentQty === 0) {
-          msg = `Only ${availableStock} item(s) available in stock. You requested ${requestedQty}.`;
-        } else if (canAdd > 0) {
-          msg = `Only ${availableStock} in stock! You already have ${currentQty} in cart (can add at most ${canAdd} more).`;
-        } else {
-          msg = `Only ${availableStock} item(s) available in stock. You already have all ${availableStock} in your cart.`;
-        }
-        checkResult = {
-          success: false,
-          stock: availableStock,
-          currentQty,
-          canAdd,
-          message: msg
-        };
-        return prev;
-      }
-
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + requestedQty, stock: availableStock }
-            : item
-        );
+      const idx = prev.findIndex((item) => String(item.id) === String(product.id));
+      if (idx > -1) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + requestedQty, stock: availableStock };
+        return next;
       }
       return [
         ...prev,
@@ -97,31 +93,35 @@ export function CartProvider({ children }) {
       ];
     });
 
-    return checkResult;
-  }, []);
+    return { success: true };
+  }, [cartItems]);
 
   const updateQuantity = useCallback((id, newQuantity) => {
-    let checkResult = { success: true };
+    const targetQty = Number(newQuantity);
+    const existing = cartItems.find((item) => String(item.id) === String(id));
+
+    if (existing) {
+      const availableStock = (existing.stock !== undefined && existing.stock !== null)
+        ? Number(existing.stock)
+        : 999;
+
+      if (targetQty > existing.quantity && targetQty > availableStock) {
+        return {
+          success: false,
+          stock: availableStock,
+          currentQty: existing.quantity,
+          message: `Cannot add more. Only ${availableStock} unit(s) available in stock.`
+        };
+      }
+    }
 
     setCartItems((prev) =>
       prev
         .map((item) => {
-          if (item.id === id) {
+          if (String(item.id) === String(id)) {
             const availableStock = (item.stock !== undefined && item.stock !== null)
               ? Number(item.stock)
               : 999;
-            const targetQty = Number(newQuantity);
-
-            if (targetQty > item.quantity && targetQty > availableStock) {
-              checkResult = {
-                success: false,
-                stock: availableStock,
-                currentQty: item.quantity,
-                message: `Cannot add more. Only ${availableStock} unit(s) available in stock.`
-              };
-              return item;
-            }
-
             return targetQty > 0 ? { ...item, quantity: Math.min(targetQty, availableStock) } : null;
           }
           return item;
@@ -129,8 +129,8 @@ export function CartProvider({ children }) {
         .filter(Boolean)
     );
 
-    return checkResult;
-  }, []);
+    return { success: true };
+  }, [cartItems]);
 
   const getProductInCartQty = useCallback((productId) => {
     const item = cartItems.find((it) => it.id === productId);

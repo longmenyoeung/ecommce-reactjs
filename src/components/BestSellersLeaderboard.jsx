@@ -2,16 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchBestSellers } from '../services/api';
 import { getImageUrl, getFallbackImageUrl } from '../utils/imageHelper';
-import { getCategoryName } from '../utils/categoryHelper';
 import {
   FireIcon,
-  TrophyIcon,
   SparklesIcon,
   ShoppingCartIcon,
   EyeIcon,
-  ArrowTrendingUpIcon,
-  TagIcon,
-  CheckBadgeIcon
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 
 export default function BestSellersLeaderboard({ onAddToCart, onQuickView }) {

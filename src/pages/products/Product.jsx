@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchProducts, fetchCategories, fetchBestSellers } from '../../services/api';
-import { getCategoryName, DEFAULT_CATEGORY_LIST } from '../../utils/categoryHelper';
+import { getCategoryName } from '../../utils/categoryHelper';
 import ProductCard from '../../components/ProductCard';
 import SkeletonCard from '../../components/SkeletonCard';
 import BestSellersLeaderboard from '../../components/BestSellersLeaderboard';
 import { getImageUrl } from '../../utils/imageHelper';
 import { 
-  BoltIcon, ShieldCheckIcon, CubeIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, 
-  GlobeAltIcon, SparklesIcon, FireIcon, TruckIcon, CheckBadgeIcon, StarIcon, 
-  TagIcon, SignalIcon, ShoppingCartIcon, EyeIcon, ArrowDownIcon,
+  BoltIcon, ShieldCheckIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, 
+  FireIcon, TruckIcon, CheckBadgeIcon, 
+  ShoppingCartIcon, EyeIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
@@ -91,7 +92,7 @@ function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActi
       if (document.visibilityState === 'visible') {
         handleRevalidate();
       }
-    }, 15000);
+    }, 60000);
 
     return () => {
       window.removeEventListener('focus', handleRevalidate);
@@ -101,7 +102,6 @@ function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActi
 
   const [inStockOnly, setInStockOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(2500);
-  const [ratingFilter, setRatingFilter] = useState('all');
 
   // Filter and Sort Products
   const filteredAndSortedProducts = useMemo(() => {
@@ -795,6 +795,11 @@ function Product({ onAddToCart, onQuickView, searchTerm, activeCategory, setActi
                 <button onClick={onOpenContact} style={{ color: 'var(--text-secondary)', cursor: 'pointer', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}>
                   Contact & Order Support
                 </button>
+              </li>
+              <li>
+                <Link to="/track" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onMouseOver={(e) => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                  🚚 Track Your Delivery
+                </Link>
               </li>
             </ul>
           </div>

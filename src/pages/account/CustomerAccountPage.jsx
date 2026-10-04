@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -7,12 +7,10 @@ import {
   UserCircleIcon,
   ShoppingBagIcon,
   MapPinIcon,
-  ShieldCheckIcon,
   ArrowRightOnRectangleIcon,
   PrinterIcon,
   TruckIcon,
   SparklesIcon,
-  CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
 
@@ -25,7 +23,7 @@ export function CustomerAccountPage({ onOpenTracking }) {
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
-  const fetchCustomerOrders = async (silent = false) => {
+  const fetchCustomerOrders = useCallback(async (silent = false) => {
     if (!user) return;
     if (!silent) setLoadingOrders(true);
     try {
@@ -41,12 +39,12 @@ export function CustomerAccountPage({ onOpenTracking }) {
     } finally {
       if (!silent) setLoadingOrders(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     fetchCustomerOrders();
-  }, [user]);
+  }, [user, fetchCustomerOrders]);
 
   // Fast auto-refresh: poll customer orders every 8s so admin status updates appear live
   useEffect(() => {
@@ -65,7 +63,7 @@ export function CustomerAccountPage({ onOpenTracking }) {
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
     };
-  }, [user]);
+  }, [user, fetchCustomerOrders]);
 
   if (!user) {
     return (

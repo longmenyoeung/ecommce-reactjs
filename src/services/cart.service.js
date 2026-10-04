@@ -50,17 +50,19 @@ export const cartService = {
           })
         }).catch(err => console.warn("API add cart warning:", err.message));
       }
-    } finally {
-      const items = cartService.getLocalCart();
-      const existingIndex = items.findIndex(i => String(i.id) === String(product.id));
-      if (existingIndex > -1) {
-        items[existingIndex].quantity += quantity;
-      } else {
-        items.push({ ...product, quantity });
-      }
-      cartService.saveCart(items);
-      return items;
+    } catch (err) {
+      console.warn("Cart sync warning:", err);
     }
+
+    const items = cartService.getLocalCart();
+    const existingIndex = items.findIndex(i => String(i.id) === String(product.id));
+    if (existingIndex > -1) {
+      items[existingIndex].quantity += quantity;
+    } else {
+      items.push({ ...product, quantity });
+    }
+    cartService.saveCart(items);
+    return items;
   },
 
   // PUT /api/cart/{id}
@@ -75,12 +77,14 @@ export const cartService = {
           body: JSON.stringify({ quantity, price: itemPrice })
         }).catch(() => {});
       }
-    } finally {
-      const items = cartService.getLocalCart();
-      const updated = items.map(i => String(i.id) === String(productId) ? { ...i, quantity: Math.max(1, quantity) } : i);
-      cartService.saveCart(updated);
-      return updated;
+    } catch (err) {
+      console.warn("Cart update sync warning:", err);
     }
+
+    const items = cartService.getLocalCart();
+    const updated = items.map(i => String(i.id) === String(productId) ? { ...i, quantity: Math.max(1, quantity) } : i);
+    cartService.saveCart(updated);
+    return updated;
   },
 
   // DELETE /api/cart/{id}
@@ -89,11 +93,13 @@ export const cartService = {
       if (localStorage.getItem('auth_token')) {
         await apiRequest(`/cart/${productId}`, { method: 'DELETE' }).catch(() => {});
       }
-    } finally {
-      const items = cartService.getLocalCart().filter(i => String(i.id) !== String(productId));
-      cartService.saveCart(items);
-      return items;
+    } catch (err) {
+      console.warn("Cart remove sync warning:", err);
     }
+
+    const items = cartService.getLocalCart().filter(i => String(i.id) !== String(productId));
+    cartService.saveCart(items);
+    return items;
   },
 
   // DELETE /api/cart
@@ -102,10 +108,12 @@ export const cartService = {
       if (localStorage.getItem('auth_token')) {
         await apiRequest('/cart', { method: 'DELETE' }).catch(() => {});
       }
-    } finally {
-      localStorage.removeItem('cart_items');
-      return [];
+    } catch (err) {
+      console.warn("Cart clear sync warning:", err);
     }
+
+    localStorage.removeItem('cart_items');
+    return [];
   },
 
   getLocalCart: () => {
